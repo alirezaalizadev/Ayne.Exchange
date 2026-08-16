@@ -1,0 +1,460 @@
+// ============================================================================
+// AYNE EXCHANGE — Database schema
+// MySQL / MariaDB. Run `npx prisma migrate dev` to create migrations.
+// Conventions: snake_case tables, cuid() ids (never expose sequential ids),
+// createdAt/updatedAt everywhere, soft-delete via `deletedAt` where useful.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------ Admin & auth --------------------------------
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  EDITOR
+}
+
+model Admin {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          AdminRole @default(ADMIN)
+  isActive      Boolean   @default(true)
+
+  // TOTP 2FA (architecture in place; enforcement optional)
+  totpSecret    String?
+  totpEnabled   Boolean   @default(false)
+
+  failedLogins  Int       @default(0)
+  lockedUntil   DateTime?
+  lastLoginAt   DateTime?
+  // Sessions issued before this instant are invalidated (e.g. after password change).
+  sessionsValidFrom DateTime @default(now())
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      AdminSession[]
+  auditLogs     AuditLog[]
+  quoteNotes    QuoteNote[]
+  blogPosts     BlogPost[]
+
+  @@map("admins")
+}
+
+model AdminSession {
+  id           String   @id @default(cuid())
+  admin        Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  adminId      String
+  // SHA-256 of the session token; the raw token lives only in the cookie.
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?  @db.Text
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+// ------------------------------ Quote requests ------------------------------
+
+enum QuoteStatus {
+  NEW
+  REVIEWING
+  CONTACTED
+  QUOTED
+  COMPLETED
+  REJECTED
+  ARCHIVED
+}
+
+enum ClientType {
+  BUSINESS
+  INDIVIDUAL
+}
+
+enum ContactMethod {
+  WHATSAPP
+  TELEGRAM
+  EMAIL
+  PHONE
+}
+
+model QuoteRequest {
+  id              String        @id @default(cuid())
+  // Public-facing reference, e.g. AYNE-Q-2026-00124 (never expose internal id).
+  reference       String        @unique
+
+  serviceKey      String        // matches Service.key
+  sendAmount      Decimal?      @db.Decimal(18, 2)
+  sendCurrency    String?       @db.VarChar(8)
+  receiveCurrency String?       @db.VarChar(8)
+  originCountry   String?       @db.VarChar(2)
+  destinationCountry String?    @db.VarChar(2)
+  purpose         String?       @db.Text
+  clientType      ClientType    @default(BUSINESS)
+  timing          String?       @db.VarChar(64)
+  notes           String?       @db.Text
+
+  contactMethod   ContactMethod @default(WHATSAPP)
+  contactValue    String        @db.VarChar(255)
+
+  status          QuoteStatus   @default(NEW)
+  ipHash          String?       @db.VarChar(64) // hashed, for abuse control only
+  locale          String        @default("en") @db.VarChar(5)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  quoteNotes      QuoteNote[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([serviceKey])
+  @@map("quote_requests")
+}
+
+model QuoteNote {
+  id        String       @id @default(cuid())
+  quote     QuoteRequest @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId   String
+  author    Admin?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId  String?
+  body      String       @db.Text
+  createdAt DateTime     @default(now())
+
+  @@index([quoteId])
+  @@map("quote_notes")
+}
+
+// ------------------------------ Services (CMS) ------------------------------
+
+model Service {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "swift-payments"
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+
+  // Fallback content; UI prefers i18n dictionary keyed by `key`.
+  name        String
+  summary     String   @db.Text
+  icon        String   @default("banknote") // lucide icon name / custom mark id
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+// ------------------------------ Exchange rates ------------------------------
+
+enum RateMode {
+  AUTO     // pulled from provider (API)
+  MANUAL   // admin-set displayed value
+  ADJUSTED // provider rate + adjustment (spreadPct)
+}
+
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  base          String   @db.VarChar(8)
+  quote         String   @db.VarChar(8)
+  // Rate sourced from provider (before spread/override).
+  apiRate       Decimal? @db.Decimal(24, 8)
+  // Optional spread applied on top of apiRate for display (e.g. 0.5 = 0.5%).
+  spreadPct     Decimal? @db.Decimal(8, 4)
+  // Manual override value (also used as the mid/display rate in MANUAL mode).
+  manualRate    Decimal? @db.Decimal(24, 8)
+  // Optional separate buy / sell rates.
+  buyRate       Decimal? @db.Decimal(24, 8)
+  sellRate      Decimal? @db.Decimal(24, 8)
+  mode          RateMode @default(MANUAL)
+
+  provider      String   @default("manual")
+  // Source label is REQUIRED for transparency (official / NIMA / market / etc.).
+  sourceLabel   String   @default("market") @db.VarChar(32)
+
+  // Display config (e.g. show "USD / TOMAN"; explicit divisor, never inferred).
+  displayLabel  String?  @db.VarChar(48)
+  displayDecimals Int?
+  unitDivisor   Decimal? @db.Decimal(24, 8)
+  note          String?  @db.Text
+
+  isPublished   Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  order         Int      @default(0)
+
+  fetchedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  history       RateHistory[]
+
+  @@unique([base, quote, sourceLabel])
+  @@index([isPublished, deletedAt])
+  @@map("exchange_rates")
+}
+
+model RateHistory {
+  id        String       @id @default(cuid())
+  rate      ExchangeRate @relation(fields: [rateId], references: [id], onDelete: Cascade)
+  rateId    String
+  value     Decimal      @db.Decimal(24, 8) // display/mid rate at the time
+  buyRate   Decimal?     @db.Decimal(24, 8)
+  sellRate  Decimal?     @db.Decimal(24, 8)
+  mode      String?      @db.VarChar(16)
+  source    String?      @db.VarChar(32)
+  changedBy String?      @db.VarChar(120) // admin email/name for the audit trail
+  recordedAt DateTime    @default(now())
+
+  @@index([rateId, recordedAt])
+  @@map("rate_history")
+}
+
+// ------------------------------ Transactions (display) ----------------------
+
+enum TransactionStatus {
+  COMPLETED
+  PROCESSING
+  PENDING
+  CANCELLED
+  IN_PROGRESS // legacy alias, treated as PROCESSING in UI
+}
+
+enum AmountDisplayMode {
+  EXACT
+  ROUNDED
+  RANGE
+  HIDDEN
+}
+
+// Admin-entered display transactions. NEVER store account numbers, IBANs,
+// SWIFT messages, or customer/beneficiary names here.
+model Transaction {
+  id                 String            @id @default(cuid())
+  // Public, non-sequential reference, e.g. AYN-260812-X7K4.
+  publicRef          String?           @unique
+  originCountry      String            @db.VarChar(2)
+  originCity         String?           @db.VarChar(64)
+  destinationCountry String            @db.VarChar(2)
+  destinationCity    String?           @db.VarChar(64)
+  currency           String            @db.VarChar(8)
+  displayAmount      Decimal           @db.Decimal(18, 2)
+  amountDisplayMode  AmountDisplayMode @default(EXACT)
+  amountRangeMin     Decimal?          @db.Decimal(18, 2)
+  amountRangeMax     Decimal?          @db.Decimal(18, 2)
+  serviceKey         String
+  paymentMethod      String?           @db.VarChar(64)
+  status             TransactionStatus @default(COMPLETED)
+  occurredOn         DateTime
+  note               String?           @db.Text
+  isDemo             Boolean           @default(true) // flips to false only for real, sanitized entries
+  isPublished        Boolean           @default(false)
+  isFeatured         Boolean           @default(false)
+  order              Int               @default(0)
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  @@index([isPublished, deletedAt, order])
+  @@map("transactions")
+}
+
+// ------------------------------ Case studies -------------------------------
+
+model CaseStudy {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  originCountry  String   @db.VarChar(2)
+  destinationCountry String @db.VarChar(2)
+  industry       String
+  approxAmount   String?  @db.VarChar(64)
+  method         String
+  problem        String   @db.Text
+  solution       String   @db.Text
+  status         String   @default("Completed")
+  sanitizedConfirmed Boolean @default(false) // admin must confirm before publish
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("case_studies")
+}
+
+// ------------------------------ Testimonials -------------------------------
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  // Anonymous descriptor allowed, e.g. "Import Company — Istanbul".
+  author      String
+  country     String?  @db.VarChar(2)
+  body        String   @db.Text
+  rating      Int?
+  isVerified  Boolean  @default(false)
+  isDemo      Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  isPublished Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+// ------------------------------ Blog / insights ----------------------------
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+}
+
+model BlogCategory {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  posts     BlogPost[]
+  createdAt DateTime   @default(now())
+
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  locale        String       @default("en") @db.VarChar(5)
+  title         String
+  excerpt       String       @db.Text
+  body          String       @db.LongText
+  coverImage    String?
+  readingMinutes Int         @default(4)
+
+  author        Admin?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId      String?
+  authorName    String?      // display fallback
+
+  category      BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId    String?
+  tags          String?      @db.Text // comma-separated
+
+  seoTitle      String?
+  seoDescription String?     @db.Text
+  canonicalUrl  String?
+
+  status        PostStatus   @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  @@index([status, publishedAt])
+  @@map("blog_posts")
+}
+
+// ------------------------------ Landing pages ------------------------------
+
+model LandingPage {
+  id            String   @id @default(cuid())
+  slug          String   @unique // e.g. "business-payments-europe"
+  locale        String   @default("en") @db.VarChar(5)
+  title         String
+  heading       String
+  intro         String   @db.Text
+  body          String   @db.LongText
+  seoTitle      String?
+  seoDescription String? @db.Text
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("landing_pages")
+}
+
+// ------------------------------ Settings (singleton-ish) --------------------
+
+// Key/value store for editable site settings (brand, contacts, defaults, SEO).
+model SiteSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ------------------------------ Analytics ----------------------------------
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String   @db.VarChar(48) // page_view, service_view, quote_start, quote_completed, whatsapp_click, ...
+  path      String?  @db.VarChar(255)
+  locale    String?  @db.VarChar(5)
+  // Coarse, non-identifying metadata only. No PII, no quote contents.
+  meta      String?  @db.Text
+  // Daily-rotating visitor hash for unique counts (not a durable identifier).
+  visitorHash String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+// ------------------------------ Security & audit ---------------------------
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  type      String   @db.VarChar(48) // login_success, login_failed, lockout, csrf_fail, rate_limited
+  email     String?
+  ipHash    String?  @db.VarChar(64)
+  userAgent String?  @db.Text
+  meta      String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@map("security_events")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  admin      Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  adminId    String?
+  action     String   @db.VarChar(64) // rate.update, transaction.publish, quote.status_change, ...
+  entityType String?  @db.VarChar(48)
+  entityId   String?
+  metadata   String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ------------------------------ Rate limiting ------------------------------
+
+// Simple DB-backed fixed-window limiter (portable; no Redis dependency).
+model RateLimit {
+  id         String   @id @default(cuid())
+  bucketKey  String   // e.g. "quote:<ipHash>" or "login:<email>"
+  windowStart DateTime
+  count      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([bucketKey, windowStart])
+  @@index([windowStart])
+  @@map("rate_limits")
+}

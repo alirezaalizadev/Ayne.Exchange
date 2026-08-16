@@ -1,7 +1,37 @@
+# dependencies
 node_modules/
-.env
-.DS_Store
-__pycache__/
-*.log
-dist/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
 build/
+dist/
+
+# production
+/build
+
+# env
+.env
+.env*.local
+
+# prisma
+prisma/*.db
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+__pycache__/
+
+# typescript
+next-env.d.ts
+*.tsbuildinfo
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

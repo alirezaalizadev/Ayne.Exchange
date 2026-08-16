@@ -1,0 +1,333 @@
+{
+  "common": {
+    "requestQuote": "Request a Quote",
+    "exploreServices": "Explore Services",
+    "learnMore": "Learn more",
+    "getStarted": "Get started",
+    "readMore": "Read more",
+    "viewAll": "View all",
+    "getYourRate": "Get your rate",
+    "contactUs": "Contact us",
+    "chatWithUs": "Chat with us",
+    "loading": "Loading",
+    "backToHome": "Back to home"
+  },
+  "nav": {
+    "home": "Home",
+    "services": "Services",
+    "rates": "Exchange Rates",
+    "transactions": "Payment Activity",
+    "payments": "Payments",
+    "howItWorks": "How It Works",
+    "insights": "Insights",
+    "about": "About",
+    "compliance": "Compliance",
+    "contact": "Contact",
+    "requestQuote": "Request a Quote",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "servicesMenuTitle": "Payment services",
+    "servicesMenuLead": "Cross-border payment and settlement support for complex international business."
+  },
+  "hero": {
+    "eyebrow": "Global payments · Private solutions",
+    "titleLine1": "Move business",
+    "titleHighlight": "beyond borders",
+    "subtitle": "International payments, currency exchange and cross-border settlement for businesses that move money across borders — handled privately, delivered with personal service.",
+    "ctaPrimary": "Request a Quote",
+    "ctaSecondary": "Explore Services",
+    "trustNote": "Service availability is subject to jurisdiction, transaction review and applicable law.",
+    "mapCaption": "Illustrative payment corridors — for presentation only.",
+    "routeAvailability": "Route availability depends on transaction type and compliance review."
+  },
+  "ticker": {
+    "label": "Indicative market rates",
+    "indicative": "Indicative"
+  },
+  "stats": {
+    "eyebrow": "Track record",
+    "title": "Experience that moves with your business",
+    "subtitle": "Built on years of hands-on work across complex international payment corridors.",
+    "yearsExperience": "Years of payment-sector experience",
+    "transactionExperience": "Combined transaction experience",
+    "networkExperience": "Payment network experience",
+    "paymentRoutes": "International payment routes",
+    "global": "Global",
+    "multiple": "Multiple",
+    "experienceDisclaimer": "Figures reflect combined transaction experience, not audited volumes."
+  },
+  "services": {
+    "eyebrow": "What we do",
+    "title": "Payment services for international business",
+    "subtitle": "Consulting and coordination across the payment methods global trade relies on. Tell us your route and amount to receive a tailored quote.",
+    "cta": "Request a Quote",
+    "learnMore": "Learn more",
+    "swift": {
+      "name": "SWIFT Payments",
+      "short": "International business payments assistance over the SWIFT network."
+    },
+    "sepa": {
+      "name": "SEPA Payments",
+      "short": "EUR payment coordination across the Single Euro Payments Area."
+    },
+    "business": {
+      "name": "International Business Payments",
+      "short": "Cross-border settlement support for B2B and trade payments."
+    },
+    "exchange": {
+      "name": "Currency Exchange",
+      "short": "International currency exchange at competitive rates, quoted to your needs."
+    },
+    "importExport": {
+      "name": "Import / Export Payments",
+      "short": "Payment coordination for import and export trade flows."
+    },
+    "cash": {
+      "name": "International Cash Services",
+      "short": "Physical cash collection and delivery coordination for international business."
+    },
+    "crypto": {
+      "name": "Crypto / Cash Exchange",
+      "short": "OTC buying and selling of stablecoins and major digital assets."
+    },
+    "consulting": {
+      "name": "Payment Consulting",
+      "short": "Route planning and payment strategy for complex transactions."
+    }
+  },
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "A clear path from enquiry to coordination",
+    "subtitle": "A structured, compliance-aware process — no accounts to open, no exposure before you are ready.",
+    "step1Title": "Submit your request",
+    "step1Body": "Tell us the corridor, currencies and purpose. It takes a few minutes and commits you to nothing.",
+    "step2Title": "Transaction review",
+    "step2Body": "We assess the request against compliance, jurisdiction and route availability.",
+    "step3Title": "Receive your quote",
+    "step3Body": "You get an indicative structure and pricing, discussed privately over your preferred channel.",
+    "step4Title": "Payment coordination",
+    "step4Body": "Once agreed, the transaction is coordinated and settled following the appropriate procedures."
+  },
+  "network": {
+    "eyebrow": "Global network",
+    "title": "Connecting business across markets",
+    "subtitle": "The corridors we work across — connecting Europe, Türkiye, the Gulf, Eurasia and Asia.",
+    "rolePrimary": "Global payment hub",
+    "roleSecondary": "Regional hub",
+    "roleStandard": "Financial centre",
+    "routeType": "Business payment route",
+    "disclaimer": "Route availability depends on transaction type and compliance review. Corridors shown are illustrative and do not imply banking partnerships."
+  },
+  "calculator": {
+    "eyebrow": "Exchange calculator",
+    "title": "Exchange Calculator",
+    "panelSubtitle": "Indicative currency conversion",
+    "youSend": "You send",
+    "estimatedConversion": "You receive",
+    "exchangeRate": "Exchange rate",
+    "updatedAt": "Updated {time}",
+    "searchCurrency": "Search currencies",
+    "swapTooltip": "Swap currencies",
+    "unavailable": "Rate currently unavailable — request a quote instead.",
+    "disclaimer": "Indicative market rate. Final transaction pricing is provided by quote.",
+    "cta": "Get your rate"
+  },
+  "compliance": {
+    "eyebrow": "Compliance & security",
+    "title": "Serious about doing this the right way",
+    "subtitle": "Transactions may be reviewed for sanctions exposure, counterparty risk, source of funds, documentation and jurisdiction before they proceed.",
+    "point1": "Sanctions & jurisdiction screening",
+    "point2": "AML-aware transaction review",
+    "point3": "Source-of-funds and documentation checks",
+    "point4": "Confidential handling of your information",
+    "statement": "Ayne Exchange does not support transactions intended to circumvent applicable sanctions, AML rules, banking restrictions, reporting obligations or financial regulations.",
+    "cta": "Read our compliance approach"
+  },
+  "finalCta": {
+    "title": "Let's talk about your next payment",
+    "subtitle": "Request a quote and a specialist will review your corridor privately.",
+    "primary": "Request a Quote",
+    "secondary": "Contact us"
+  },
+  "footer": {
+    "tagline": "Global payments. Private solutions.",
+    "services": "Services",
+    "payments": "Payments",
+    "company": "Company",
+    "resources": "Resources",
+    "legal": "Legal",
+    "contact": "Contact",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "cookies": "Cookie Policy",
+    "disclaimerTitle": "Risk & compliance",
+    "disclaimer": "Service availability is subject to jurisdiction, transaction review, compliance requirements and applicable law. Ayne Exchange is not a bank or a licensed financial institution.",
+    "rights": "All rights reserved.",
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram"
+  },
+  "quote": {
+    "title": "Request a Quote",
+    "subtitle": "Tell us about your payment. A specialist will review it privately.",
+    "step": "Step",
+    "of": "of",
+    "stepDetails": "Details",
+    "stepRoute": "Route",
+    "stepContact": "Contact",
+    "stepReview": "Review",
+    "next": "Continue",
+    "back": "Back",
+    "submit": "Submit request",
+    "serviceType": "Service type",
+    "sendAmount": "Send amount",
+    "sendCurrency": "Send currency",
+    "receiveCurrency": "Receive currency",
+    "originCountry": "Origin country",
+    "destinationCountry": "Destination country",
+    "purpose": "Payment purpose",
+    "clientType": "Business or individual",
+    "business": "Business",
+    "individual": "Individual",
+    "timing": "Approximate timing",
+    "notes": "Additional notes",
+    "contactMethod": "Preferred contact method",
+    "contactInfo": "Contact information",
+    "successTitle": "Request received",
+    "successBody": "Thank you. Your enquiry reference is below — keep it for your records. A specialist will be in touch through your preferred channel.",
+    "reference": "Your reference",
+    "consent": "I understand service availability is subject to compliance review and applicable law."
+  },
+  "transactions": {
+    "nav": "Payment Activity",
+    "eyebrow": "Global payment activity",
+    "title": "Recent payment activity",
+    "subtitle": "A live look at recent cross-border payment routes coordinated by Ayne Exchange. Sensitive details are never shown.",
+    "homeTitle": "Recent payment activity",
+    "homeSubtitle": "Real routes, coordinated privately.",
+    "viewAll": "View all activity",
+    "reference": "Ref",
+    "empty": "Published activity will appear here soon.",
+    "loadMore": "Load more",
+    "filterAll": "All",
+    "filterService": "Service",
+    "filterStatus": "Status",
+    "search": "Search reference",
+    "statusCOMPLETED": "Completed",
+    "statusPROCESSING": "Processing",
+    "statusPENDING": "Pending",
+    "statusCANCELLED": "Cancelled",
+    "businessPayment": "Business Payment",
+    "detailTitle": "Payment activity",
+    "route": "Route",
+    "amount": "Amount",
+    "service": "Service",
+    "date": "Date",
+    "status": "Status",
+    "statLabelYears": "Years experience",
+    "statLabelVolume": "Combined experience",
+    "statLabelRoutes": "Published routes",
+    "statLabelCurrencies": "Currencies"
+  },
+  "contactPage": {
+    "eyebrow": "Contact",
+    "title": "Talk to a payments specialist",
+    "subtitle": "Reach us on your preferred channel, or request a quote and we'll come to you. Business enquiries are handled privately.",
+    "whatsappTitle": "WhatsApp",
+    "whatsappDesc": "Fastest way to reach us for a quick conversation.",
+    "telegramTitle": "Telegram",
+    "telegramDesc": "Message us on Telegram for discreet correspondence.",
+    "emailTitle": "Email",
+    "emailDesc": "For detailed enquiries and documentation.",
+    "quoteTitle": "Request a quote",
+    "quoteDesc": "Share your corridor and we'll review it privately — no account needed.",
+    "quoteCta": "Request a Quote",
+    "open": "Open"
+  },
+  "aboutPage": {
+    "eyebrow": "About",
+    "title": "Private payment solutions for complex international business",
+    "subtitle": "Built on years of hands-on experience across cross-border payments.",
+    "p1": "Ayne Exchange focuses on the practical realities of moving money across borders for businesses — the corridors, currencies and documentation that international trade depends on.",
+    "p2": "Over seven years of payment-sector experience inform how we work: privately, attentively, and with a clear understanding of how complex settlements come together in practice.",
+    "p3": "We serve businesses and traders who value discretion and a compliance-aware approach. Every engagement is reviewed before it proceeds, and sensitive information is handled with confidentiality.",
+    "valuesTitle": "How we work",
+    "value1Title": "Private by default",
+    "value1Body": "Discreet, personal service. Your information stays confidential.",
+    "value2Title": "Compliance-aware",
+    "value2Body": "Requests are reviewed for sanctions, AML and jurisdiction before proceeding.",
+    "value3Title": "Business-focused",
+    "value3Body": "Solutions shaped around real trade flows, not generic products.",
+    "note": "Ayne Exchange is not a bank or a licensed financial institution. Company registration and regulatory details will be published here once finalized."
+  },
+  "insightsPage": {
+    "eyebrow": "Insights",
+    "title": "Payment insights & guides",
+    "subtitle": "Practical perspectives on international payments, foreign exchange and cross-border trade.",
+    "emptyTitle": "Articles coming soon",
+    "emptyBody": "We're preparing guides on SWIFT, SEPA, FX and international trade. Check back shortly."
+  },
+  "legal": {
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Use",
+    "lastUpdated": "Last updated",
+    "draftNotice": "This is a working draft provided as a starting point. Final legal text, including company identity and regulatory details, should be reviewed by qualified counsel before publication.",
+    "backToHome": "Back to home"
+  },
+  "paymentsPage": {
+    "eyebrow": "International payments",
+    "title": "Cross-border business payment solutions",
+    "subtitle": "Focused support for the corridors international trade relies on. Availability depends on transaction type and compliance review.",
+    "disclaimer": "Corridors shown are illustrative and imply no banking partnerships. Route availability depends on transaction type and compliance review."
+  },
+  "ratesPage": {
+    "eyebrow": "Exchange rates",
+    "title": "Indicative exchange rates",
+    "subtitle": "Reference rates for orientation only. Final commercial pricing is provided by quote and depends on the corridor, amount and compliance review.",
+    "indicative": "Indicative",
+    "sourceMarket": "Market",
+    "sourceOfficial": "Official",
+    "iranNoteTitle": "A note on Iranian rates",
+    "iranNote": "Iranian market rates can differ significantly between official, NIMA and open-market references. Rates shown here are indicative reference points only and are not a quote.",
+    "disclaimer": "Rates are indicative and may be delayed. Ayne Exchange does not guarantee any displayed rate.",
+    "catTRY": "Turkish Lira",
+    "catIran": "Iranian market",
+    "catMajor": "Major FX",
+    "catRegional": "Regional currencies",
+    "catCrypto": "Crypto",
+    "empty": "Live rates are updating. Please check back shortly.",
+    "buy": "Buy",
+    "sell": "Sell",
+    "updated": "Updated"
+  },
+  "servicePage": {
+    "overviewTitle": "What this service covers",
+    "workflowTitle": "How the process works",
+    "workflow1": "Submit an enquiry with your corridor, currencies and purpose.",
+    "workflow2": "We review the request for compliance, jurisdiction and route availability.",
+    "workflow3": "You receive an indicative structure and pricing, discussed privately.",
+    "workflow4": "Once agreed, the payment is coordinated and settled with appropriate procedures.",
+    "documentationTitle": "Documentation & compliance",
+    "documentationBody": "Depending on the corridor and amount, we may request documentation to support the transaction — such as invoices, purpose of payment, and information on the source of funds and counterparties. Requests may be screened for sanctions exposure and AML considerations before proceeding.",
+    "useCasesTitle": "Common use cases",
+    "relatedTitle": "Other services",
+    "ctaTitle": "Request a quote",
+    "ctaBody": "Tell us about your payment and a specialist will review it privately. No account required.",
+    "requestQuote": "Request a Quote",
+    "disclaimer": "Availability is subject to jurisdiction, transaction type and compliance review. Ayne Exchange does not guarantee payment completion or specific exchange rates, and does not support transactions intended to circumvent applicable sanctions or financial regulations."
+  },
+  "meta": {
+    "siteName": "Ayne Exchange",
+    "defaultTitle": "Ayne Exchange — Global Payments, Private Solutions",
+    "defaultDescription": "International business payment coordination, currency exchange and cross-border settlement support for complex trade. Private service, reviewed for compliance."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you are looking for doesn't exist or has moved.",
+    "cta": "Back to home"
+  }
+}
