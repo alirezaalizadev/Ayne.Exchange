@@ -442,42 +442,193 @@ function OrbitingText({
   );
 }
 
-function Tokens({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>; variant: SceneProps['variant']; enter: React.MutableRefObject<number> }) {
-  const specs = variant === 'mobile' ? [0] : [0, 1];
+/* ------------------------------ crypto coins ----------------------------- *
+ * Premium minted coins (BTC/ETH/USDT/USDC pool) — procedural cylinder with a
+ * striped bump "reeded" edge, torus rims, and a generated face texture used
+ * as both color and bump map for an embossed relief look. Crypto stays a
+ * minority presence (~20%) — two coins on desktop, one on mobile.           */
+
+interface CoinDef {
+  id: string;
+  symbol: string;
+  base: string;      // metal base colour
+  center?: string;   // two-tone centre medallion
+  ring?: string;     // accent ring inlay
+  rough: number;
+}
+
+const COIN_DEFS: CoinDef[] = [
+  { id: 'BTC', symbol: '\u20bf', base: '#8a6f42', center: '#7a6139', rough: 0.38 },
+  { id: 'ETH', symbol: '\u039e', base: '#c3c9d6', center: '#4d5566', rough: 0.3 },
+  { id: 'USDT', symbol: '\u20ae', base: '#b9c1cf', ring: '#1f8a70', rough: 0.22 },
+  { id: 'USDC', symbol: '$', base: '#b9c1cf', ring: '#2563d8', rough: 0.22 },
+];
+
+/** Coin pairs cycle so the whole pool appears over time. */
+const COIN_PAIRS: [number, number][] = [
+  [0, 2], // BTC + USDT
+  [1, 3], // ETH + USDC
+  [0, 1], // BTC + ETH
+  [2, 3], // USDT + USDC
+];
+
+function makeCoinFace(def: CoinDef): THREE.CanvasTexture {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const x = c.getContext('2d')!;
+  const family = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/['"]/g, '') || 'sans-serif';
+  const cx = S / 2;
+
+  x.fillStyle = def.base;
+  x.fillRect(0, 0, S, S);
+
+  // fine radial guilloche spokes
+  x.strokeStyle = 'rgba(0,0,0,0.16)';
+  x.lineWidth = 1.5;
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    x.beginPath();
+    x.moveTo(cx + Math.cos(a) * 150, cx + Math.sin(a) * 150);
+    x.lineTo(cx + Math.cos(a) * 232, cx + Math.sin(a) * 232);
+    x.stroke();
+  }
+  // concentric rings
+  x.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (const r of [150, 234, 244]) {
+    x.lineWidth = r === 244 ? 5 : 2;
+    x.beginPath();
+    x.arc(cx, cx, r, 0, Math.PI * 2);
+    x.stroke();
+  }
+  // accent ring inlay (USDT teal / USDC blue)
+  if (def.ring) {
+    x.strokeStyle = def.ring;
+    x.lineWidth = 12;
+    x.beginPath();
+    x.arc(cx, cx, 192, 0, Math.PI * 2);
+    x.stroke();
+  }
+  // centre medallion (two-tone)
+  x.fillStyle = def.center ?? 'rgba(0,0,0,0.10)';
+  x.beginPath();
+  x.arc(cx, cx, 148, 0, Math.PI * 2);
+  x.fill();
+  // embossed symbol (highlight + shadow pass for relief)
+  x.font = `800 200px ${family}`;
+  const sw = x.measureText(def.symbol).width;
+  x.fillStyle = 'rgba(255,255,255,0.28)';
+  x.fillText(def.symbol, cx - sw / 2 - 3, cx + 70 - 3);
+  x.fillStyle = 'rgba(0,0,0,0.42)';
+  x.fillText(def.symbol, cx - sw / 2 + 2, cx + 70 + 2);
+  x.fillStyle = def.center ? '#e8ebf2' : 'rgba(20,24,34,0.85)';
+  x.fillText(def.symbol, cx - sw / 2, cx + 70);
+  // AYNE mint-mark near the rim
+  x.font = `700 22px ${family}`;
+  x.fillStyle = 'rgba(0,0,0,0.4)';
+  const mw = x.measureText('AYNE').width;
+  x.fillText('AYNE', cx - mw / 2, S - 36);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** Vertical-stripe bump for the milled/reeded edge. */
+function makeReedTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 16;
+  const x = c.getContext('2d')!;
+  for (let i = 0; i < 128; i++) {
+    x.fillStyle = i % 2 ? '#ffffff' : '#666666';
+    x.fillRect(i * 2, 0, 2, 16);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.set(3, 1);
+  return tex;
+}
+
+function CryptoCoins({ variant, enter }: { variant: SceneProps['variant']; enter: React.MutableRefObject<number> }) {
+  const [pairIdx, setPairIdx] = React.useState(0);
+  React.useEffect(() => {
+    const iv = setInterval(() => setPairIdx((i) => (i + 1) % COIN_PAIRS.length), 22000);
+    return () => clearInterval(iv);
+  }, []);
+  const pair = COIN_PAIRS[pairIdx];
+  const shown = variant === 'mobile' ? [pair[0]] : pair;
+
   return (
     <>
-      {specs.map((i) => (
-        <Token key={i} idx={i} mats={mats} enter={enter} />
+      {shown.map((defIdx, slot) => (
+        <CryptoCoin key={`${defIdx}-${slot}`} def={COIN_DEFS[defIdx]} slot={slot} enter={enter} />
       ))}
     </>
   );
 }
 
-function Token({ idx, mats, enter }: { idx: number; mats: ReturnType<typeof useMaterials>; enter: React.MutableRefObject<number> }) {
+function CryptoCoin({ def, slot, enter }: { def: CoinDef; slot: number; enter: React.MutableRefObject<number> }) {
   const ref = React.useRef<THREE.Group>(null);
+  const face = React.useMemo(() => makeCoinFace(def), [def]);
+  const reed = React.useMemo(() => makeReedTexture(), []);
+  React.useEffect(() => () => { face.dispose(); reed.dispose(); }, [face, reed]);
+
+  const mats = React.useMemo(() => {
+    const faceMat = new THREE.MeshStandardMaterial({
+      map: face,
+      bumpMap: face,
+      bumpScale: 0.6,
+      color: '#ffffff',
+      metalness: 0.85,
+      roughness: def.rough,
+    });
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: def.base,
+      bumpMap: reed,
+      bumpScale: 0.4,
+      metalness: 0.85,
+      roughness: def.rough + 0.1,
+    });
+    return [edgeMat, faceMat, faceMat]; // cylinder: [side, top, bottom]
+  }, [face, reed, def]);
+
+  const rimMat = React.useMemo(
+    () => new THREE.MeshStandardMaterial({ color: def.base, metalness: 0.9, roughness: def.rough }),
+    [def],
+  );
+
   useFrame((state) => {
     const g = ref.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
-    const a = t * (0.06 + idx * 0.02) * Math.PI * 2 + idx * 3 + 2;
-    g.position.set(Math.cos(a) * (3.1 - idx * 0.5), -1.2 + idx * 2.1 + Math.sin(t * 0.5 + idx) * 0.1, Math.sin(a) * 1.3);
-    g.rotation.x = Math.PI / 2.4 + Math.sin(t * 0.4 + idx) * 0.15;
-    g.rotation.z = t * 0.25;
+    // orbit slightly farther out than the banknotes
+    const a = t * (0.055 + slot * 0.018) * Math.PI * 2 + slot * 2.6 + 1.4;
+    const R = 3.7 + slot * 0.25;
+    g.position.set(Math.cos(a) * R, (slot === 0 ? -1.05 : 1.15) + Math.sin(t * 0.45 + slot) * 0.12, Math.sin(a) * 1.45 + (slot === 0 ? 0.5 : 0));
+    // steady self-spin + occasional graceful flip
+    const flipPeriod = 12 + slot * 3;
+    const ft = (t + slot * 5) % flipPeriod;
+    const flip = ft < 1.6 ? easeOut(ft / 1.6) * Math.PI : Math.PI * (ft < 1.6 ? 0 : 1);
+    g.rotation.set(Math.PI / 2.15 + Math.sin(t * 0.35 + slot) * 0.12 + flip, 0, t * 0.4 + slot);
     const k = easeOut(THREE.MathUtils.clamp(enter.current - 0.7, 0, 1));
     g.scale.setScalar(k);
   });
+
   return (
     <group ref={ref}>
-      <mesh material={idx === 0 ? mats.silver : mats.darkMetal}>
-        <cylinderGeometry args={[0.3, 0.3, 0.045, 40]} />
+      <mesh material={mats}>
+        <cylinderGeometry args={[0.3, 0.3, 0.05, 64]} />
       </mesh>
-      <TextPlane
-        text={idx === 0 ? '€' : 'AYNE'}
-        size={idx === 0 ? 0.3 : 0.13}
-        color={idx === 0 ? P.navy : P.silver}
-        position={[0, 0.03, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      />
+      {/* beveled rims */}
+      <mesh position={[0, 0.025, 0]} rotation={[Math.PI / 2, 0, 0]} material={rimMat}>
+        <torusGeometry args={[0.288, 0.011, 8, 64]} />
+      </mesh>
+      <mesh position={[0, -0.025, 0]} rotation={[Math.PI / 2, 0, 0]} material={rimMat}>
+        <torusGeometry args={[0.288, 0.011, 8, 64]} />
+      </mesh>
     </group>
   );
 }
@@ -626,7 +777,7 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
           <Paper key={spec.code} spec={spec} theme={theme} enter={enter} />
         ))}
         <Symbols mats={mats} variant={variant} enter={enter} />
-        <Tokens mats={mats} variant={variant} enter={enter} />
+        <CryptoCoins variant={variant} enter={enter} />
         {variant === 'desktop' && <Labels enter={enter} theme={theme} />}
         <Particles variant={variant} theme={theme} enter={enter} />
       </Rig>

@@ -52,6 +52,13 @@ export function SculptureFallback() {
       </g>
       <circle cx="120" cy="300" r="3" fill="hsl(var(--primary))" opacity="0.5" />
       <circle cx="290" cy="96" r="2.5" fill="hsl(var(--primary))" opacity="0.4" />
+      {/* minted crypto coin */}
+      <g transform="translate(96 236)">
+        <circle r="22" fill="hsl(var(--muted-foreground))" opacity="0.35" />
+        <circle r="22" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.35" strokeWidth="2" />
+        <circle r="16" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.2" strokeWidth="1" />
+        <text x="0" y="7" textAnchor="middle" fontSize="20" fontWeight="800" fill="hsl(var(--foreground))" opacity="0.7">₿</text>
+      </g>
     </svg>
   );
 }
