@@ -2,23 +2,39 @@ import { getTranslations } from 'next-intl/server';
 import { ArrowRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
-import { ExchangeCalculator } from '@/components/rates/exchange-calculator';
-import { getRatePairs, getRatesUpdatedAt } from '@/lib/rates/service';
+import { Hero3D } from '@/components/three/hero-3d';
 
 /**
- * Product-first hero: massive headline + short copy on the left, the REAL
- * working exchange calculator as the visual anchor on the right. One subtle
- * accent shape behind the calculator — nothing else competes.
+ * Hero: massive headline + CTAs on the left (server-rendered, interactive
+ * immediately — always the LCP), the AYNE FINANCIAL CORE 3D sculpture on the
+ * right. The sculpture is decorative, lazy-loaded, and never blocks text.
  */
 export async function Hero() {
   const t = await getTranslations('hero');
-  const [pairs, updatedAt] = await Promise.all([getRatePairs(), getRatesUpdatedAt()]);
 
   return (
     <section className="relative overflow-hidden">
-      <div className="container grid grid-cols-1 items-center gap-12 py-16 sm:py-20 lg:grid-cols-12 lg:gap-10 lg:py-28">
-        {/* Headline */}
-        <div className="lg:col-span-6">
+      {/* subtle radial glow + faint grid behind the object (token-driven) */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div
+          className="absolute end-[-5%] top-1/2 h-[720px] w-[720px] -translate-y-1/2 rounded-full"
+          style={{ background: 'radial-gradient(closest-side, hsl(var(--primary) / 0.08), transparent 72%)' }}
+        />
+        <div
+          className="absolute end-0 top-0 h-full w-1/2 opacity-[0.5]"
+          style={{
+            backgroundImage:
+              'linear-gradient(hsl(var(--border) / 0.55) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.55) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+            maskImage: 'radial-gradient(70% 70% at 60% 50%, black, transparent)',
+            WebkitMaskImage: 'radial-gradient(70% 70% at 60% 50%, black, transparent)',
+          }}
+        />
+      </div>
+
+      <div className="container grid grid-cols-1 items-center gap-8 py-14 sm:py-16 lg:grid-cols-12 lg:gap-6 lg:py-20">
+        {/* Headline — renders immediately, never waits for the scene */}
+        <div className="relative z-10 lg:col-span-6">
           <h1 className="max-w-[14ch] text-display-lg text-balance animate-fade-up">
             {t('titleLine1')} <span className="text-primary">{t('titleHighlight')}</span>
           </h1>
@@ -46,16 +62,9 @@ export async function Hero() {
           </div>
         </div>
 
-        {/* The product: real calculator */}
-        <div className="relative lg:col-span-5 lg:col-start-8 animate-fade-up" style={{ animationDelay: '120ms' }}>
-          {/* single soft accent shape behind the card */}
-          <div
-            aria-hidden
-            className="absolute -end-10 -top-10 hidden h-64 w-64 rounded-[3rem] bg-primary-muted lg:block"
-          />
-          <div className="relative">
-            <ExchangeCalculator pairs={pairs} updatedAt={updatedAt} />
-          </div>
+        {/* AYNE FINANCIAL CORE — large, unboxed, slight edge bleed */}
+        <div className="relative h-[340px] sm:h-[420px] lg:col-span-6 lg:h-[560px] lg:-me-8 xl:h-[640px] xl:-me-14">
+          <Hero3D />
         </div>
       </div>
     </section>

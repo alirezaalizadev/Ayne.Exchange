@@ -19,6 +19,8 @@ const ContentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
+  // three/troika parse fonts in same-origin blob workers.
+  "worker-src 'self' blob:",
   "connect-src 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",

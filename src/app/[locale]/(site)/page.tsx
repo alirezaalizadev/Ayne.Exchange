@@ -6,6 +6,7 @@ import { CurrencyTicker } from '@/components/home/currency-ticker';
 import { StatsSection } from '@/components/home/stats-section';
 import { ServicesSection } from '@/components/home/services-section';
 import { NetworkSection } from '@/components/home/network-section';
+import { CalculatorSection } from '@/components/home/calculator-section';
 import { HowItWorks } from '@/components/home/how-it-works';
 import { RecentTransactions } from '@/components/home/recent-transactions';
 import { ComplianceSection } from '@/components/home/compliance-section';
@@ -38,6 +39,7 @@ export default async function HomePage({
     <>
       <OrganizationJsonLd />
       <Hero />
+      <CalculatorSection />
       <CurrencyTicker />
       <StatsSection />
       <ServicesSection />
