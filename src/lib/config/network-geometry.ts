@@ -1,69 +1,72 @@
-import { geoEqualEarth, geoPath, geoGraticule10 } from 'd3-geo';
+import { geoNaturalEarth1, geoPath, geoGraticule10 } from 'd3-geo';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
-import { cities, routes } from './network';
+import { locations } from './network-locations';
+import { routes } from './network-routes';
 import type { NetworkGeometry, RouteGeom } from './network-geometry-types';
 
 /**
- * SERVER-ONLY geometry precomputation. This module imports d3-geo,
- * topojson-client and the world-atlas dataset. It is imported ONLY by the
- * server component (NetworkSection), which passes the resulting plain,
- * serializable geometry to the client map as props — so none of these heavy
- * libraries (or the ~100KB world map JSON) are shipped to the browser.
+ * SERVER-ONLY geometry precomputation (runs once, at build, via
+ * scripts/gen-geometry.ts). Imports d3-geo/topojson/world-atlas — none of
+ * which ship to the browser; the client reads the serialized static module.
  *
- * Because the homepage is statically generated, this runs once at build time.
+ * Projection: Natural Earth, rotated so the network's centre of gravity
+ * (Europe – Türkiye – Middle East – Asia) dominates the frame and the
+ * Americas sit at the edge.
  */
-export const W = 1000;
-export const H = 600;
+export const W = 1400;
 
-const projection = geoEqualEarth()
-  .rotate([-12, 0])
-  .fitExtent(
-    [
-      [26, 24],
-      [W - 26, H - 46],
-    ],
-    { type: 'Sphere' },
-  );
+const projection = geoNaturalEarth1().rotate([-35, 0]);
+// Fit the full sphere to the canvas width; height follows the projection.
+projection.fitWidth(W, { type: 'Sphere' } as never);
 
 const pathGen = geoPath(projection);
+const [[, y0], [, y1]] = pathGen.bounds({ type: 'Sphere' } as never);
+export const H = Math.ceil(y1 - y0);
 
-export const landPath =
-  pathGen(feature(landTopo as any, (landTopo as any).objects.land) as any) ?? '';
+export const landPath = pathGen(feature(landTopo as never, (landTopo as { objects: { land: never } }).objects.land) as never) ?? '';
 export const graticulePath = pathGen(geoGraticule10()) ?? '';
-export const spherePath = pathGen({ type: 'Sphere' } as any) ?? '';
+export const spherePath = pathGen({ type: 'Sphere' } as never) ?? '';
 
 export const nodeXY: Record<string, { x: number; y: number }> = Object.fromEntries(
-  cities.map((c) => {
-    const p = projection([c.lon, c.lat]) ?? [0, 0];
-    return [c.id, { x: p[0], y: p[1] }];
+  locations.map((l) => {
+    const p = projection([l.lng, l.lat]) ?? [0, 0];
+    return [l.id, { x: Math.round(p[0] * 100) / 100, y: Math.round(p[1] * 100) / 100 }];
   }),
 );
 
+/** Curved arc whose rise scales with distance (long hauls arc visibly higher). */
 function arcPath(a: { x: number; y: number }, b: { x: number; y: number }) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy) || 1;
-  const curve = Math.min(120, dist * 0.24);
+  const lift = Math.min(190, 14 + dist * 0.22);
+  const mx0 = (a.x + b.x) / 2;
+  const my0 = (a.y + b.y) / 2;
+  // Perpendicular offset, always bowing "up" (towards smaller y).
   const nx = -dy / dist;
   const ny = dx / dist;
-  const my0 = (a.y + b.y) / 2;
-  let cx = (a.x + b.x) / 2 + nx * curve;
-  let cy = my0 + ny * curve;
+  let cx = mx0 + nx * lift;
+  let cy = my0 + ny * lift;
   if (cy > my0) {
-    cx = (a.x + b.x) / 2 - nx * curve;
-    cy = my0 - ny * curve;
+    cx = mx0 - nx * lift;
+    cy = my0 - ny * lift;
   }
-  return { d: `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`, mx: (a.x + b.x) / 2, my: cy };
+  const round = (v: number) => Math.round(v * 100) / 100;
+  return {
+    d: `M${round(a.x)},${round(a.y)} Q${round(cx)},${round(cy)} ${round(b.x)},${round(b.y)}`,
+    mx: round((mx0 + cx) / 2),
+    my: round((my0 + cy) / 2),
+  };
 }
 
 export const routeGeom: RouteGeom[] = routes
-  .map((r, i) => {
-    const a = nodeXY[r.from];
-    const b = nodeXY[r.to];
+  .map((rt) => {
+    const a = nodeXY[rt.from];
+    const b = nodeXY[rt.to];
     if (!a || !b) return null;
     const { d, mx, my } = arcPath(a, b);
-    return { from: r.from, to: r.to, d, mx, my, primary: !!r.primary, delay: -(i / routes.length) * 15 };
+    return { id: rt.id, from: rt.from, to: rt.to, d, mx, my };
   })
   .filter(Boolean) as RouteGeom[];
 

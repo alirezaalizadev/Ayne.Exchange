@@ -1,12 +1,11 @@
 /** Pure types for the precomputed network geometry (no heavy imports). */
 export interface RouteGeom {
+  id: string;
   from: string;
   to: string;
-  d: string;
-  mx: number;
+  d: string; // curved arc path
+  mx: number; // midpoint (route tooltip anchor)
   my: number;
-  primary: boolean;
-  delay: number;
 }
 
 export interface NetworkGeometry {

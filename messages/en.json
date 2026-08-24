@@ -115,13 +115,17 @@
   },
   "network": {
     "eyebrow": "Global network",
-    "title": "Connecting business across markets",
+    "title": "International connectivity, built around business.",
     "subtitle": "The corridors we work across — connecting Europe, Türkiye, the Gulf, Eurasia and Asia.",
     "rolePrimary": "Global payment hub",
     "roleSecondary": "Regional hub",
     "roleStandard": "Financial centre",
     "routeType": "Business payment route",
-    "disclaimer": "Route availability depends on transaction type and compliance review. Corridors shown are illustrative and do not imply banking partnerships."
+    "disclaimer": "Route availability depends on transaction type and compliance review. Corridors shown are illustrative and do not imply banking partnerships.",
+    "connections": "{count} connections",
+    "statLocations": "Locations",
+    "statRegions": "Regions",
+    "statRoutes": "Routes"
   },
   "calculator": {
     "eyebrow": "Exchange calculator",

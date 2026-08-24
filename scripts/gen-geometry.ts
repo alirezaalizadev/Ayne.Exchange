@@ -16,3 +16,9 @@ const contents =
 
 writeFileSync('src/lib/config/network-geometry-static.ts', contents);
 console.log('Generated src/lib/config/network-geometry-static.ts');
+console.log(`canvas: ${networkGeometry.W}x${networkGeometry.H}`);
+// Key coordinates used to hand-tune the responsive viewBox crops.
+for (const id of ['istanbul', 'london', 'moscow', 'dubai', 'hongkong', 'singapore', 'newyork', 'losangeles', 'tokyo']) {
+  const p = networkGeometry.nodeXY[id];
+  if (p) console.log(`  ${id}: ${Math.round(p.x)},${Math.round(p.y)}`);
+}
