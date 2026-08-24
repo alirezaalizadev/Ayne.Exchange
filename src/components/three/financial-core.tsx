@@ -128,6 +128,12 @@ function useMaterials(theme: 'light' | 'dark') {
         metalness: 0.92,
         roughness: 0.32,
       }),
+      // Core material — brushed titanium, light enough to read every facet.
+      titanium: new THREE.MeshStandardMaterial({
+        color: dark ? '#93a0bd' : '#7e8aa6',
+        metalness: 0.55,
+        roughness: 0.42,
+      }),
       silver: new THREE.MeshStandardMaterial({
         color: dark ? '#d6dbe6' : P.silver,
         metalness: 0.9,
@@ -163,7 +169,7 @@ function Core({ mats, enter }: { mats: ReturnType<typeof useMaterials>; enter: R
 
   return (
     <group ref={group}>
-      <mesh geometry={geo} material={mats.darkMetal} />
+      <mesh geometry={geo} material={mats.titanium} />
       {/* Floating exchange crossbar — echo of the logo's bidirectional bar */}
       <RoundedBox args={[1.45, 0.2, 0.26]} radius={0.06} position={[0, -0.28, 0.34]} material={mats.silver} />
     </group>
@@ -225,11 +231,9 @@ function Rings({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>
 /* --------------------------- financial papers --------------------------- */
 
 interface PaperSpec {
-  amount: string;
   currencyName: string;
   symbol: string;
   code: string;
-  word: string;
   finish: 'paper' | 'navy' | 'glass';
   radius: number;
   speed: number;
@@ -238,13 +242,15 @@ interface PaperSpec {
 }
 
 const PAPERS_DESKTOP: PaperSpec[] = [
-  { amount: '10,000', currencyName: 'EURO', symbol: '€', code: 'EUR', word: 'TRANSFER', finish: 'paper', radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
-  { amount: '25,000', currencyName: 'US DOLLAR', symbol: '$', code: 'USD', word: 'PAYMENT', finish: 'navy', radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
-  { amount: '500,000', currencyName: 'TURKISH LIRA', symbol: '₺', code: 'TRY', word: 'EXCHANGE', finish: 'paper', radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
-  { amount: '8,500', currencyName: 'POUND STERLING', symbol: '£', code: 'GBP', word: 'TRANSFER', finish: 'glass', radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
+  { currencyName: 'EURO', symbol: '€', code: 'EUR', finish: 'paper', radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
+  { currencyName: 'US DOLLAR', symbol: '$', code: 'USD', finish: 'navy', radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
+  { currencyName: 'TURKISH LIRA', symbol: '₺', code: 'TRY', finish: 'paper', radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
+  { currencyName: 'POUND STERLING', symbol: '£', code: 'GBP', finish: 'glass', radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
 ];
 
-/** Procedural note texture: AYNE branding, amount, code, word, guilloche. */
+/** Procedural stylized banknote: frame, corner symbols, centre symbol,
+ *  AYNE issuer line and currency name — deliberately no amounts, and no
+ *  imitation of any real note. */
 function makePaperTexture(spec: PaperSpec, theme: 'light' | 'dark'): THREE.CanvasTexture {
   const w = 512;
   const h = 288;
@@ -259,66 +265,59 @@ function makePaperTexture(spec: PaperSpec, theme: 'light' | 'dark'): THREE.Canva
   const bg = navy ? '#1a2133' : glass ? 'rgba(240,244,255,0.92)' : P.paper;
   const ink = navy ? '#e8ecf5' : '#1c2333';
   const sub = navy ? 'rgba(232,236,245,0.55)' : 'rgba(28,35,51,0.5)';
-  const line = navy ? 'rgba(150,170,215,0.28)' : 'rgba(37,99,216,0.18)';
+  const line = navy ? 'rgba(150,170,215,0.30)' : 'rgba(37,99,216,0.20)';
 
   x.fillStyle = bg;
   x.fillRect(0, 0, w, h);
 
-  // guilloche-style concentric arcs
+  // guilloche-style arcs behind everything
   x.strokeStyle = line;
   x.lineWidth = 1;
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 10; i++) {
     x.beginPath();
-    x.arc(w * 0.82, h * 1.15, 60 + i * 26, Math.PI, Math.PI * 2);
-    x.stroke();
-  }
-  for (let i = 0; i < 7; i++) {
-    x.beginPath();
-    x.arc(w * 0.08, -h * 0.15, 40 + i * 30, 0, Math.PI);
+    x.arc(w / 2, h / 2, 46 + i * 16, 0, Math.PI * 2);
     x.stroke();
   }
   // micro-pattern dots
   x.fillStyle = navy ? 'rgba(232,236,245,0.05)' : 'rgba(28,35,51,0.045)';
-  for (let i = 0; i < 260; i++) {
-    x.fillRect((i * 97) % w, (i * 53) % h, 1.5, 1.5);
-  }
+  for (let i = 0; i < 220; i++) x.fillRect((i * 97) % w, (i * 53) % h, 1.5, 1.5);
 
-  // ghost currency-symbol watermark (large, translucent, end side)
-  x.font = `800 190px ${family}`;
-  x.fillStyle = navy ? 'rgba(232,236,245,0.08)' : 'rgba(28,35,51,0.07)';
+  // double border frame
+  x.strokeStyle = navy ? 'rgba(232,236,245,0.4)' : 'rgba(28,35,51,0.35)';
+  x.lineWidth = 3;
+  x.strokeRect(12, 12, w - 24, h - 24);
+  x.lineWidth = 1;
+  x.strokeRect(22, 22, w - 44, h - 44);
+
+  // corner symbols (banknote corners, no numerals)
+  x.fillStyle = sub;
+  x.font = `800 34px ${family}`;
+  x.fillText(spec.symbol, 34, 66);
+  const swc = x.measureText(spec.symbol).width;
+  x.fillText(spec.symbol, w - 34 - swc, h - 40);
+
+  // centre symbol medallion
+  x.fillStyle = navy ? 'rgba(232,236,245,0.9)' : 'rgba(28,35,51,0.85)';
+  x.font = `800 104px ${family}`;
   const sw = x.measureText(spec.symbol).width;
-  x.fillText(spec.symbol, w - sw - 30, h - 42);
+  x.fillText(spec.symbol, (w - sw) / 2, h / 2 + 38);
 
-  // AYNE wordmark
+  // issuer line (top centre)
   x.fillStyle = ink;
-  x.font = `800 32px ${family}`;
-  x.fillText('AYNE', 32, 56);
-  x.font = `600 12px ${family}`;
-  x.fillStyle = sub;
-  x.fillText('E X C H A N G E', 33, 77);
+  x.font = `800 22px ${family}`;
+  const issuer = 'AYNE EXCHANGE';
+  x.fillText(issuer, (w - x.measureText(issuer).width) / 2, 58);
 
-  // word (top-end)
-  x.font = `700 15px ${family}`;
+  // currency name (bottom centre, letterspaced)
+  x.font = `700 20px ${family}`;
   x.fillStyle = navy ? P.accentSoft : P.accent;
-  const ww = x.measureText(spec.word).width;
-  x.fillText(spec.word, w - ww - 34, 54);
-
-  // the denomination as one composed whole: amount over the full currency name
-  x.fillStyle = ink;
-  x.font = `800 58px ${family}`;
-  x.fillText(spec.amount, 32, h - 84);
-  x.font = `700 19px ${family}`;
-  x.fillStyle = navy ? P.accentSoft : P.accent;
-  // letterspaced currency name
-  let cx0 = 33;
+  let total = 0;
+  for (const ch of spec.currencyName) total += x.measureText(ch).width + 6;
+  let cx0 = (w - total) / 2;
   for (const ch of spec.currencyName) {
-    x.fillText(ch, cx0, h - 46);
-    cx0 += x.measureText(ch).width + 5;
+    x.fillText(ch, cx0, h - 48);
+    cx0 += x.measureText(ch).width + 6;
   }
-  // small code chip under the name
-  x.font = `600 13px ${family}`;
-  x.fillStyle = sub;
-  x.fillText(spec.code, 34, h - 20);
 
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
@@ -363,7 +362,7 @@ function Paper({ spec, theme, enter }: { spec: PaperSpec; theme: 'light' | 'dark
 
   return (
     <group ref={ref}>
-      <RoundedBox args={[1.42, 0.8, 0.02]} radius={0.05} smoothness={2} material={mat} />
+      <RoundedBox args={[0.92, 0.52, 0.014]} radius={0.035} smoothness={2} material={mat} />
     </group>
   );
 }
@@ -611,6 +610,7 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
       <ambientLight intensity={dark ? 0.35 : 0.55} />
       <directionalLight position={[4, 6, 5]} intensity={dark ? 1.1 : 1.5} color="#ffffff" />
       <pointLight position={[0, 0, 3.2]} intensity={dark ? 1.0 : 0.5} color={P.accent} distance={9} />
+      <directionalLight position={[1.5, 0.5, 6]} intensity={dark ? 0.55 : 0.8} color="#ffffff" />
       {/* Procedural studio environment — local cubemap, no downloads. */}
       <Environment resolution={128} frames={1}>
         <Lightformer intensity={dark ? 1.6 : 2.4} position={[0, 4, 3]} scale={[9, 3, 1]} color="#ffffff" />
