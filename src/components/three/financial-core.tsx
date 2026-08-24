@@ -153,8 +153,17 @@ function useMaterials(theme: 'light' | 'dark') {
 
 /* ------------------------------- core ----------------------------------- */
 
-function Core({ mats, enter }: { mats: ReturnType<typeof useMaterials>; enter: React.MutableRefObject<number> }) {
+function Core({
+  mats,
+  enter,
+  coreFlash,
+}: {
+  mats: ReturnType<typeof useMaterials>;
+  enter: React.MutableRefObject<number>;
+  coreFlash: React.MutableRefObject<number>;
+}) {
   const group = React.useRef<THREE.Group>(null);
+  const light = React.useRef<THREE.PointLight>(null);
   const geo = useCoreGeometry();
 
   useFrame((state) => {
@@ -165,6 +174,11 @@ function Core({ mats, enter }: { mats: ReturnType<typeof useMaterials>; enter: R
     const k = THREE.MathUtils.clamp(enter.current, 0, 1);
     const s = THREE.MathUtils.lerp(0.6, 1, easeOut(k));
     g.scale.setScalar(s);
+    // brief illumination while a conversion passes through
+    const f = coreFlash.current;
+    mats.titanium.emissive.setStyle(P.accent);
+    mats.titanium.emissiveIntensity = f * 0.35;
+    if (light.current) light.current.intensity = f * 2.2;
   });
 
   return (
@@ -172,6 +186,7 @@ function Core({ mats, enter }: { mats: ReturnType<typeof useMaterials>; enter: R
       <mesh geometry={geo} material={mats.titanium} />
       {/* Floating exchange crossbar — echo of the logo's bidirectional bar */}
       <RoundedBox args={[1.45, 0.2, 0.26]} radius={0.06} position={[0, -0.28, 0.34]} material={mats.silver} />
+      <pointLight ref={light} intensity={0} color={P.accentSoft} distance={5} />
     </group>
   );
 }
@@ -664,6 +679,25 @@ function Labels({ enter, theme }: { enter: React.MutableRefObject<number>; theme
   );
 }
 
+/* ---------------------- shared glow sprite texture ----------------------- */
+
+let _glowTex: THREE.CanvasTexture | null = null;
+function glowSprite(): THREE.CanvasTexture {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 64, 64);
+  _glowTex = new THREE.CanvasTexture(c);
+  return _glowTex;
+}
+
 /* ------------------------------ particles -------------------------------- */
 
 function Particles({ variant, theme, enter }: { variant: SceneProps['variant']; theme: 'light' | 'dark'; enter: React.MutableRefObject<number> }) {
@@ -713,7 +747,8 @@ function Particles({ variant, theme, enter }: { variant: SceneProps['variant']; 
         <bufferAttribute attach="attributes-position" args={[data.pos, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.028}
+        size={0.05}
+        map={glowSprite()}
         color={theme === 'dark' ? P.accentSoft : P.accent}
         transparent
         opacity={0}
@@ -722,6 +757,232 @@ function Particles({ variant, theme, enter }: { variant: SceneProps['variant']; 
       />
     </points>
   );
+}
+
+/* --------------------------- currency conversion ------------------------- *
+ * The signature moment: every ~11s (16s mobile) ONE object drifts toward the
+ * core, dissolves into blue-white light, the particles cross the core (which
+ * briefly illuminates), and the value reconstructs as a DIFFERENT currency on
+ * the far side — including note↔coin pairs for crypto/cash exchange.
+ * Elegant dissolution, never an explosion; one conversion at a time.        */
+
+type ConvObj = { kind: 'note'; idx: number } | { kind: 'coin'; idx: number };
+
+const CONVERSION_PAIRS: { from: ConvObj; to: ConvObj }[] = [
+  { from: { kind: 'note', idx: 1 }, to: { kind: 'note', idx: 0 } }, // USD → EUR
+  { from: { kind: 'note', idx: 0 }, to: { kind: 'note', idx: 2 } }, // EUR → TRY
+  { from: { kind: 'note', idx: 1 }, to: { kind: 'coin', idx: 2 } }, // USD → USDT (crypto/cash)
+  { from: { kind: 'note', idx: 2 }, to: { kind: 'note', idx: 1 } }, // TRY → USD
+  { from: { kind: 'coin', idx: 0 }, to: { kind: 'note', idx: 0 } }, // BTC → EUR
+];
+
+const N_CONV = 56;
+
+function ConvObject({
+  obj,
+  groupRef,
+  matRef,
+  ringRef,
+}: {
+  obj: ConvObj;
+  groupRef: React.RefObject<THREE.Group>;
+  matRef: React.MutableRefObject<THREE.Material[]>;
+  ringRef?: React.RefObject<THREE.Mesh>;
+}) {
+  const noteTex = React.useMemo(
+    () => (obj.kind === 'note' ? makePaperTexture(PAPERS_DESKTOP[obj.idx], 'light') : null),
+    [obj],
+  );
+  const coinTex = React.useMemo(() => (obj.kind === 'coin' ? makeCoinFace(COIN_DEFS[obj.idx]) : null), [obj]);
+  React.useEffect(
+    () => () => {
+      noteTex?.dispose();
+      coinTex?.dispose();
+    },
+    [noteTex, coinTex],
+  );
+
+  const mats = React.useMemo(() => {
+    if (obj.kind === 'note') {
+      const m = new THREE.MeshStandardMaterial({
+        map: noteTex,
+        roughness: 0.75,
+        metalness: 0.06,
+        transparent: true,
+        opacity: 0,
+      });
+      matRef.current = [m];
+      return { note: m, coin: null as THREE.MeshStandardMaterial[] | null };
+    }
+    const def = COIN_DEFS[obj.idx];
+    const face = new THREE.MeshStandardMaterial({
+      map: coinTex,
+      bumpMap: coinTex,
+      bumpScale: 0.6,
+      metalness: 0.85,
+      roughness: def.rough,
+      transparent: true,
+      opacity: 0,
+    });
+    const edge = new THREE.MeshStandardMaterial({
+      color: def.base,
+      metalness: 0.85,
+      roughness: def.rough + 0.1,
+      transparent: true,
+      opacity: 0,
+    });
+    matRef.current = [face, edge];
+    return { note: null, coin: [edge, face, face] };
+  }, [obj, noteTex, coinTex, matRef]);
+
+  return (
+    <group ref={groupRef} visible={false}>
+      {obj.kind === 'note' ? (
+        <RoundedBox args={[0.92, 0.52, 0.014]} radius={0.035} smoothness={2} material={mats.note!} />
+      ) : (
+        <>
+          <mesh material={mats.coin!}>
+            <cylinderGeometry args={[0.3, 0.3, 0.05, 64]} />
+          </mesh>
+          {/* reconstruct ring-flash on the coin face */}
+          <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]} visible={false}>
+            <torusGeometry args={[0.3, 0.02, 8, 48]} />
+            <meshBasicMaterial color={P.accentSoft} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        </>
+      )}
+    </group>
+  );
+}
+
+function ConversionLayer({
+  variant,
+  theme,
+  enter,
+  coreFlash,
+}: {
+  variant: SceneProps['variant'];
+  theme: 'light' | 'dark';
+  enter: React.MutableRefObject<number>;
+  coreFlash: React.MutableRefObject<number>;
+}) {
+  const period = variant === 'mobile' ? 16 : 11;
+  const [pairIdx, setPairIdx] = React.useState(0);
+  const pair = CONVERSION_PAIRS[pairIdx % CONVERSION_PAIRS.length];
+
+  const fromRef = React.useRef<THREE.Group>(null);
+  const toRef = React.useRef<THREE.Group>(null);
+  const ringRef = React.useRef<THREE.Mesh>(null);
+  const fromMats = React.useRef<THREE.Material[]>([]);
+  const toMats = React.useRef<THREE.Material[]>([]);
+  const ptsRef = React.useRef<THREE.Points>(null);
+  const startRef = React.useRef<number | null>(null);
+  const seeds = React.useMemo(() => Float32Array.from({ length: N_CONV * 3 }, () => Math.random() - 0.5), []);
+
+  const setOpacity = (mats: THREE.Material[], o: number) =>
+    mats.forEach((m) => ((m as THREE.MeshStandardMaterial).opacity = o));
+
+  useFrame((state) => {
+    // wait until the entrance has settled, then run cycles
+    if (enter.current < 1.6) return;
+    if (startRef.current === null) startRef.current = state.clock.elapsedTime + 2;
+    const t = state.clock.elapsedTime - startRef.current;
+    if (t < 0) return;
+    if (t > period) {
+      startRef.current = state.clock.elapsedTime;
+      setPairIdx((i) => (i + 1) % CONVERSION_PAIRS.length);
+      return;
+    }
+
+    const A = fromRef.current;
+    const B = toRef.current;
+    const pts = ptsRef.current;
+    if (!A || !B || !pts) return;
+
+    const X0 = -3.4; // entry side
+    const X1 = 3.4; // exit side
+    const yBase = 0.15;
+
+    // Phase windows (seconds)
+    const drift = smooth(t, 0, 2.6); // approach
+    const dissolve = smooth(t, 2.6, 3.6); // melt into light
+    const cross = smooth(t, 3.4, 5.0); // particles through core
+    const rebuild = smooth(t, 5.0, 6.0); // reconstruct
+    const exit = smooth(t, 6.2, 8.8); // drift away
+    const fadeOut = smooth(t, 8.2, 9.2);
+
+    // FROM object: drifts -3.4 → -1.1, fades in then dissolves (scale down)
+    A.visible = t < 3.8;
+    A.position.set(THREE.MathUtils.lerp(X0, -1.05, drift), yBase + Math.sin(t * 1.3) * 0.06, 0.6);
+    A.rotation.y = 0.5 - drift * 0.4;
+    const aScale = (0.9 + drift * 0.1) * (1 - dissolve);
+    A.scale.setScalar(Math.max(aScale, 0.0001));
+    setOpacity(fromMats.current, Math.min(drift * 2, 1) * (1 - dissolve));
+
+    // Particle stream: emerges at dissolve, crosses origin, converges at +1.05
+    const arr = (pts.geometry.attributes.position as THREE.BufferAttribute).array as Float32Array;
+    const p0 = new THREE.Vector3(-1.05, yBase, 0.6);
+    const p1 = new THREE.Vector3(1.05, yBase, 0.6);
+    for (let i = 0; i < N_CONV; i++) {
+      const f = i / N_CONV;
+      const lead = THREE.MathUtils.clamp(cross * 1.25 - f * 0.25, 0, 1);
+      const spread = Math.sin(lead * Math.PI); // widest mid-flight
+      arr[i * 3] = THREE.MathUtils.lerp(p0.x, p1.x, lead) + seeds[i * 3] * 0.5 * spread;
+      arr[i * 3 + 1] = THREE.MathUtils.lerp(p0.y, p1.y, lead) + seeds[i * 3 + 1] * 0.45 * spread;
+      arr[i * 3 + 2] = THREE.MathUtils.lerp(p0.z, 0, Math.min(lead * 2, 1)) + seeds[i * 3 + 2] * 0.4 * spread;
+    }
+    (pts.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    const pm = pts.material as THREE.PointsMaterial;
+    pm.opacity = Math.min(dissolve * 1.5, 1) * (1 - rebuild) * 0.95;
+
+    // Core illumination while the value passes through
+    coreFlash.current = Math.sin(Math.min(Math.max((t - 3.2) / 2.2, 0), 1) * Math.PI);
+
+    // TO object: reconstructs at +1.05, drifts out, fades
+    B.visible = t > 4.8;
+    B.position.set(THREE.MathUtils.lerp(1.05, X1, exit), yBase + Math.sin(t * 1.1) * 0.06, 0.6);
+    B.rotation.y = -0.3 + exit * 0.5;
+    if (pair.to.kind === 'coin') {
+      B.rotation.x = Math.PI / 2.2;
+      B.rotation.z = t * 0.6;
+    }
+    B.scale.setScalar(Math.max(rebuild, 0.0001));
+    setOpacity(toMats.current, rebuild * (1 - fadeOut));
+
+    // coin reconstruct ring-flash
+    const ring = ringRef.current;
+    if (ring && pair.to.kind === 'coin') {
+      const rf = smooth(t, 5.0, 5.9);
+      ring.visible = rf > 0 && rf < 1;
+      ring.scale.setScalar(1 + rf * 1.6);
+      (ring.material as THREE.MeshBasicMaterial).opacity = Math.sin(rf * Math.PI) * 0.9;
+    }
+  });
+
+  return (
+    <>
+      <ConvObject key={`f-${pairIdx}`} obj={pair.from} groupRef={fromRef} matRef={fromMats} />
+      <ConvObject key={`t-${pairIdx}`} obj={pair.to} groupRef={toRef} matRef={toMats} ringRef={ringRef} />
+      <points ref={ptsRef}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[new Float32Array(N_CONV * 3), 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.09}
+          map={glowSprite()}
+          color={theme === 'dark' ? '#bcd2ff' : P.accent}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+    </>
+  );
+}
+
+function smooth(t: number, a: number, b: number) {
+  return THREE.MathUtils.smoothstep(t, a, b);
 }
 
 /* ------------------------------ rig + scene ------------------------------ */
@@ -748,6 +1009,7 @@ function Rig({ pointer, children }: { pointer: SceneProps['pointer']; children: 
 function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
   const mats = useMaterials(theme);
   const enter = React.useRef(0);
+  const coreFlash = React.useRef(0);
   useFrame((_, delta) => {
     // master entrance progress: 0→~1.9 over ~2.8s (staggers gate on offsets)
     enter.current = Math.min(enter.current + delta * 0.68, 1.9);
@@ -763,7 +1025,7 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
       <pointLight position={[0, 0, 3.2]} intensity={dark ? 1.0 : 0.5} color={P.accent} distance={9} />
       <directionalLight position={[1.5, 0.5, 6]} intensity={dark ? 0.55 : 0.8} color="#ffffff" />
       {/* Procedural studio environment — local cubemap, no downloads. */}
-      <Environment resolution={128} frames={1}>
+      <Environment resolution={64} frames={1}>
         <Lightformer intensity={dark ? 1.6 : 2.4} position={[0, 4, 3]} scale={[9, 3, 1]} color="#ffffff" />
         <Lightformer intensity={dark ? 1.1 : 1.4} position={[-5, 1, -1]} rotation={[0, Math.PI / 2, 0]} scale={[6, 2, 1]} color="#dfe6f5" />
         <Lightformer intensity={dark ? 1.4 : 1.1} position={[5, -1, 0]} rotation={[0, -Math.PI / 2, 0]} scale={[6, 2, 1]} color={P.accentSoft} />
@@ -771,7 +1033,7 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
       </Environment>
 
       <Rig pointer={pointer}>
-        <Core mats={mats} enter={enter} />
+        <Core mats={mats} enter={enter} coreFlash={coreFlash} />
         <Rings mats={mats} variant={variant} enter={enter} />
         {papers.map((spec) => (
           <Paper key={spec.code} spec={spec} theme={theme} enter={enter} />
@@ -780,6 +1042,7 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
         <CryptoCoins variant={variant} enter={enter} />
         {variant === 'desktop' && <Labels enter={enter} theme={theme} />}
         <Particles variant={variant} theme={theme} enter={enter} />
+        <ConversionLayer variant={variant} theme={theme} enter={enter} coreFlash={coreFlash} />
       </Rig>
     </>
   );
@@ -789,7 +1052,7 @@ export default function FinancialCore({ theme, variant, active, pointer }: Scene
   return (
     <Canvas
       frameloop={active ? 'always' : 'never'}
-      dpr={[1, variant === 'mobile' ? 1.4 : 1.75]}
+      dpr={[1, variant === 'mobile' ? 1.3 : 1.5]}
       camera={{ position: [1.6, 0.5, 7.2], fov: 34 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       style={{ background: 'transparent' }}

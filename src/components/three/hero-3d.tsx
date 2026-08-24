@@ -73,14 +73,41 @@ export function Hero3D() {
   const [variant, setVariant] = React.useState<'desktop' | 'mobile'>('desktop');
   const [active, setActive] = React.useState(true);
 
-  // Decide once on the client which experience this device gets.
+  // Decide once on the client which experience this device gets. The WebGL
+  // upgrade is deferred until after window load + idle so scene init (three
+  // parse, shader + env compile) never lands in the initial load window —
+  // the static placeholder holds the exact frame until then (CLS 0).
   React.useEffect(() => {
     const mobile = window.matchMedia('(max-width: 1023px)').matches;
     setVariant(mobile ? 'mobile' : 'desktop');
     const mem = (navigator as { deviceMemory?: number }).deviceMemory;
     const weak = mobile && mem != null && mem < 4;
-    if (reduce || weak || !supportsWebGL()) setMode('static');
-    else setMode('webgl');
+    if (reduce || weak || !supportsWebGL()) {
+      setMode('static');
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const upgrade = () => {
+      if (!cancelled) setMode('webgl');
+    };
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+          (window as unknown as { requestIdleCallback: (cb: () => void, o?: { timeout: number }) => void })
+            .requestIdleCallback(upgrade, { timeout: 2000 });
+        } else {
+          upgrade();
+        }
+      }, 2500);
+    };
+    if (document.readyState === 'complete') schedule();
+    else window.addEventListener('load', schedule, { once: true });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('load', schedule);
+    };
   }, [reduce]);
 
   // Pause the render loop off-viewport / hidden tab.
