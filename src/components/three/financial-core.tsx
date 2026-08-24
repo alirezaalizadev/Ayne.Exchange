@@ -243,136 +243,274 @@ function Rings({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>
   );
 }
 
-/* --------------------------- financial papers --------------------------- */
+/* ------------------------ real-currency banknotes ------------------------ *
+ * Recognition through design language, NOT scans: each note borrows its real
+ * currency's iconic colours, denomination typography and ornament style —
+ * original artwork, no portraits, no serial formats, no photo textures.
+ * Slightly desaturated/graded so they sit in the scene on both themes.
+ * A discreet AYNE stamp marks each note as a brand object.                  */
 
-interface PaperSpec {
-  currencyName: string;
-  symbol: string;
+interface NoteDef {
   code: string;
-  finish: 'paper' | 'navy' | 'glass';
-  radius: number;
-  speed: number;
-  phase: number;
-  y: number;
+  symbol: string;
+  denom: string;
+  bg: string;
+  bg2: string;
+  ink: string;
+  accent: string;
+  motif: 'seal' | 'arch' | 'crescent' | 'meander' | 'wave' | 'crown' | 'band';
 }
 
-const PAPERS_DESKTOP: PaperSpec[] = [
-  { currencyName: 'EURO', symbol: '€', code: 'EUR', finish: 'paper', radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
-  { currencyName: 'US DOLLAR', symbol: '$', code: 'USD', finish: 'navy', radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
-  { currencyName: 'TURKISH LIRA', symbol: '₺', code: 'TRY', finish: 'paper', radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
-  { currencyName: 'POUND STERLING', symbol: '£', code: 'GBP', finish: 'glass', radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
+const NOTE_DEFS: NoteDef[] = [
+  { code: 'USD', symbol: '$', denom: '100', bg: '#e6e2cd', bg2: '#d8dcc4', ink: '#33523a', accent: '#24402c', motif: 'seal' },
+  { code: 'EUR', symbol: '\u20ac', denom: '50', bg: '#cdd5df', bg2: '#c2ccd4', ink: '#3a5578', accent: '#87692f', motif: 'arch' },
+  { code: 'TRY', symbol: '\u20ba', denom: '200', bg: '#e2c7b6', bg2: '#d8b3a4', ink: '#8d4136', accent: '#a45a2f', motif: 'crescent' },
+  { code: 'CNY', symbol: '\u00a5', denom: '100', bg: '#e3bfc0', bg2: '#d7a9ad', ink: '#8f3540', accent: '#7a2c36', motif: 'meander' },
+  { code: 'JPY', symbol: '\u00a5', denom: '1000', bg: '#e6e0cf', bg2: '#d9d0c2', ink: '#5f5169', accent: '#7a6a54', motif: 'wave' },
+  // optional extras in the rotation pool
+  { code: 'GBP', symbol: '\u00a3', denom: '20', bg: '#d8c9d6', bg2: '#cbb9ca', ink: '#5d3e63', accent: '#7d5a83', motif: 'crown' },
+  { code: 'RUB', symbol: '\u20bd', denom: '1000', bg: '#cfd8cd', bg2: '#c0ccc0', ink: '#3f5f4c', accent: '#57755f', motif: 'band' },
 ];
 
-/** Procedural stylized banknote: frame, corner symbols, centre symbol,
- *  AYNE issuer line and currency name — deliberately no amounts, and no
- *  imitation of any real note. */
-function makePaperTexture(spec: PaperSpec, theme: 'light' | 'dark'): THREE.CanvasTexture {
-  const w = 512;
-  const h = 288;
+function drawStar(x: CanvasRenderingContext2D, cx: number, cy: number, r: number, points = 5) {
+  x.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i * Math.PI) / points - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+  }
+  x.closePath();
+  x.fill();
+}
+
+function makePaperTexture(def: NoteDef): THREE.CanvasTexture {
+  const w = 640;
+  const h = 360;
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const x = c.getContext('2d')!;
   const family = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/['"]/g, '') || 'sans-serif';
 
-  const navy = spec.finish === 'navy';
-  const glass = spec.finish === 'glass';
-  const bg = navy ? '#1a2133' : glass ? 'rgba(240,244,255,0.92)' : P.paper;
-  const ink = navy ? '#e8ecf5' : '#1c2333';
-  const sub = navy ? 'rgba(232,236,245,0.55)' : 'rgba(28,35,51,0.5)';
-  const line = navy ? 'rgba(150,170,215,0.30)' : 'rgba(37,99,216,0.20)';
-
-  x.fillStyle = bg;
+  // graded two-tone paper ground
+  const grad = x.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, def.bg);
+  grad.addColorStop(1, def.bg2);
+  x.fillStyle = grad;
   x.fillRect(0, 0, w, h);
 
-  // guilloche-style arcs behind everything
-  x.strokeStyle = line;
+  const ink = def.ink;
+  const withA = (hex: string, a: number) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  };
+
+  // paper micro-texture
+  x.fillStyle = withA(ink, 0.05);
+  for (let i = 0; i < 420; i++) x.fillRect((i * 131) % w, (i * 71) % h, 1.4, 1.4);
+
+  // guilloche border bands (top + bottom interlaced arcs)
+  x.strokeStyle = withA(ink, 0.34);
+  x.lineWidth = 1.2;
+  for (const yBand of [26, h - 26]) {
+    for (let i = 0; i < 40; i++) {
+      x.beginPath();
+      x.arc(i * 17, yBand, 13, 0, Math.PI * 2);
+      x.stroke();
+    }
+  }
+  // frame
+  x.strokeStyle = withA(ink, 0.55);
+  x.lineWidth = 3;
+  x.strokeRect(10, 10, w - 20, h - 20);
   x.lineWidth = 1;
-  for (let i = 0; i < 10; i++) {
+  x.strokeRect(18, 18, w - 36, h - 36);
+
+  // fine guilloche rosette field (centre-left)
+  x.strokeStyle = withA(ink, 0.16);
+  x.lineWidth = 1;
+  for (let i = 0; i < 14; i++) {
     x.beginPath();
-    x.arc(w / 2, h / 2, 46 + i * 16, 0, Math.PI * 2);
+    x.ellipse(w * 0.62, h * 0.52, 40 + i * 9, 92 - i * 4, (i * Math.PI) / 14, 0, Math.PI * 2);
     x.stroke();
   }
-  // micro-pattern dots
-  x.fillStyle = navy ? 'rgba(232,236,245,0.05)' : 'rgba(28,35,51,0.045)';
-  for (let i = 0; i < 220; i++) x.fillRect((i * 97) % w, (i * 53) % h, 1.5, 1.5);
 
-  // double border frame
-  x.strokeStyle = navy ? 'rgba(232,236,245,0.4)' : 'rgba(28,35,51,0.35)';
-  x.lineWidth = 3;
-  x.strokeRect(12, 12, w - 24, h - 24);
-  x.lineWidth = 1;
-  x.strokeRect(22, 22, w - 44, h - 44);
-
-  // corner symbols (banknote corners, no numerals)
-  x.fillStyle = sub;
-  x.font = `800 34px ${family}`;
-  x.fillText(spec.symbol, 34, 66);
-  const swc = x.measureText(spec.symbol).width;
-  x.fillText(spec.symbol, w - 34 - swc, h - 40);
-
-  // centre symbol medallion
-  x.fillStyle = navy ? 'rgba(232,236,245,0.9)' : 'rgba(28,35,51,0.85)';
-  x.font = `800 104px ${family}`;
-  const sw = x.measureText(spec.symbol).width;
-  x.fillText(spec.symbol, (w - sw) / 2, h / 2 + 38);
-
-  // issuer line (top centre)
-  x.fillStyle = ink;
-  x.font = `800 22px ${family}`;
-  const issuer = 'AYNE EXCHANGE';
-  x.fillText(issuer, (w - x.measureText(issuer).width) / 2, 58);
-
-  // currency name (bottom centre, letterspaced)
-  x.font = `700 20px ${family}`;
-  x.fillStyle = navy ? P.accentSoft : P.accent;
-  let total = 0;
-  for (const ch of spec.currencyName) total += x.measureText(ch).width + 6;
-  let cx0 = (w - total) / 2;
-  for (const ch of spec.currencyName) {
-    x.fillText(ch, cx0, h - 48);
-    cx0 += x.measureText(ch).width + 6;
+  /* ---- currency-specific motif ---- */
+  x.save();
+  if (def.motif === 'seal') {
+    // dollar-style circular seal with radial ticks
+    const cx0 = w * 0.62, cy0 = h * 0.52, R = 62;
+    x.strokeStyle = withA(ink, 0.75);
+    x.lineWidth = 3;
+    x.beginPath(); x.arc(cx0, cy0, R, 0, Math.PI * 2); x.stroke();
+    x.lineWidth = 1.4;
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * Math.PI * 2;
+      x.beginPath();
+      x.moveTo(cx0 + Math.cos(a) * (R - 8), cy0 + Math.sin(a) * (R - 8));
+      x.lineTo(cx0 + Math.cos(a) * (R - 2), cy0 + Math.sin(a) * (R - 2));
+      x.stroke();
+    }
+    x.beginPath(); x.arc(cx0, cy0, R - 14, 0, Math.PI * 2); x.stroke();
+    x.fillStyle = withA(ink, 0.8);
+    drawStar(x, cx0, cy0, 20, 5);
+  } else if (def.motif === 'arch') {
+    // euro arches + ring of stars
+    x.strokeStyle = withA(ink, 0.6);
+    x.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      x.beginPath();
+      x.arc(w * 0.62, h * 0.86, 46 + i * 20, Math.PI, Math.PI * 2);
+      x.stroke();
+    }
+    x.fillStyle = withA(def.accent, 0.85);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      drawStar(x, w * 0.62 + Math.cos(a) * 78, h * 0.38 + Math.sin(a) * 52, 7, 5);
+    }
+  } else if (def.motif === 'crescent') {
+    // Turkish crescent-star + eight-point seljuk stars
+    const cx0 = w * 0.63, cy0 = h * 0.5;
+    x.fillStyle = withA(ink, 0.72);
+    x.beginPath(); x.arc(cx0, cy0, 42, 0, Math.PI * 2); x.fill();
+    x.fillStyle = grad as unknown as string;
+    x.fillStyle = def.bg;
+    x.beginPath(); x.arc(cx0 + 14, cy0, 36, 0, Math.PI * 2); x.fill();
+    x.fillStyle = withA(ink, 0.72);
+    drawStar(x, cx0 + 52, cy0, 13, 5);
+    x.fillStyle = withA(def.accent, 0.4);
+    for (const [sx, sy] of [[0.42, 0.28], [0.84, 0.3], [0.45, 0.74], [0.86, 0.72]] as const) {
+      drawStar(x, w * sx, h * sy, 10, 8);
+    }
+  } else if (def.motif === 'meander') {
+    // renminbi-style key-pattern strip + round emblem
+    x.strokeStyle = withA(ink, 0.6);
+    x.lineWidth = 2.4;
+    for (let i = 0; i < 12; i++) {
+      const bx = 40 + i * 48;
+      x.strokeRect(bx, h - 58, 22, 12);
+      x.strokeRect(bx + 5, h - 53, 12, 7);
+    }
+    const cx0 = w * 0.63, cy0 = h * 0.46;
+    x.lineWidth = 3;
+    x.beginPath(); x.arc(cx0, cy0, 54, 0, Math.PI * 2); x.stroke();
+    x.font = `800 60px ${family}`;
+    x.fillStyle = withA(ink, 0.8);
+    x.fillText('\u5143', cx0 - 30, cy0 + 22);
+  } else if (def.motif === 'wave') {
+    // seigaiha overlapping wave scales
+    x.strokeStyle = withA(ink, 0.4);
+    x.lineWidth = 1.6;
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 9; col++) {
+        const bx = 60 + col * 64 + (row % 2 ? 32 : 0);
+        const by = h * 0.42 + row * 26;
+        for (const r of [30, 22, 14]) {
+          x.beginPath(); x.arc(bx, by, r, Math.PI, Math.PI * 2); x.stroke();
+        }
+      }
+    }
+  } else if (def.motif === 'crown') {
+    x.strokeStyle = withA(ink, 0.6);
+    x.lineWidth = 3;
+    x.beginPath(); x.arc(w * 0.63, h * 0.5, 52, 0, Math.PI * 2); x.stroke();
+    x.fillStyle = withA(ink, 0.7);
+    for (let i = 0; i < 5; i++) drawStar(x, w * 0.63 - 40 + i * 20, h * 0.42, 8, 5);
+    x.fillRect(w * 0.63 - 44, h * 0.5, 88, 8);
+  } else {
+    x.strokeStyle = withA(ink, 0.5);
+    x.lineWidth = 5;
+    x.strokeRect(w * 0.52, h * 0.3, w * 0.22, h * 0.4);
   }
+  x.restore();
+
+  /* ---- typography ---- */
+  // large denomination numeral (intaglio-style: shadow + face)
+  x.font = `800 96px ${family}`;
+  x.fillStyle = withA(ink, 0.28);
+  x.fillText(def.denom, 36 + 2.5, 132 + 2.5);
+  x.fillStyle = withA(ink, 0.92);
+  x.fillText(def.denom, 36, 132);
+  // small numeral bottom-right
+  x.font = `800 44px ${family}`;
+  const dw = x.measureText(def.denom).width;
+  x.fillStyle = withA(ink, 0.85);
+  x.fillText(def.denom, w - dw - 34, h - 40);
+  // currency symbol prominent
+  x.font = `800 74px ${family}`;
+  x.fillStyle = withA(def.accent, 0.9);
+  x.fillText(def.symbol, 40, h - 52);
+  // currency code
+  x.font = `700 26px ${family}`;
+  x.fillStyle = withA(ink, 0.9);
+  x.fillText(def.code, 40, 176);
+  // discreet AYNE stamp (corner)
+  x.strokeStyle = withA(ink, 0.35);
+  x.lineWidth = 1.5;
+  x.strokeRect(w - 96, 30, 62, 24);
+  x.font = `700 15px ${family}`;
+  x.fillStyle = withA(ink, 0.4);
+  x.fillText('AYNE', w - 84, 47);
 
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
   tex.colorSpace = THREE.SRGBColorSpace;
-  void theme;
   return tex;
 }
 
-function Paper({ spec, theme, enter }: { spec: PaperSpec; theme: 'light' | 'dark'; enter: React.MutableRefObject<number> }) {
+/* orbit slots (independent of which currency occupies them) */
+interface NoteSlot {
+  radius: number;
+  speed: number;
+  phase: number;
+  y: number;
+}
+
+const NOTE_SLOTS: NoteSlot[] = [
+  { radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
+  { radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
+  { radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
+  { radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
+];
+
+/** Which 4 of the pool are on stage; one seat rotates every ~26s. */
+const NOTE_SETS: number[][] = [
+  [0, 1, 2, 3], // USD EUR TRY CNY
+  [0, 1, 4, 2], // USD EUR JPY TRY
+  [4, 1, 0, 3], // JPY EUR USD CNY
+  [0, 5, 2, 6], // USD GBP TRY RUB
+];
+
+function Paper({ def, slot, enter }: { def: NoteDef; slot: NoteSlot; enter: React.MutableRefObject<number> }) {
   const ref = React.useRef<THREE.Group>(null);
-  const tex = React.useMemo(() => makePaperTexture(spec, theme), [spec, theme]);
+  const bornRef = React.useRef<number | null>(null);
+  const tex = React.useMemo(() => makePaperTexture(def), [def]);
   React.useEffect(() => () => tex.dispose(), [tex]);
 
-  const mat = React.useMemo(() => {
-    if (spec.finish === 'glass') {
-      return new THREE.MeshPhysicalMaterial({
+  const mat = React.useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
         map: tex,
-        transparent: true,
-        opacity: 0.55,
-        roughness: 0.15,
-        metalness: 0.15,
-      });
-    }
-    return new THREE.MeshStandardMaterial({
-      map: tex,
-      roughness: 0.75,
-      metalness: 0.06,
-    });
-  }, [tex, spec.finish]);
+        bumpMap: tex,
+        bumpScale: 0.25,
+        roughness: 0.72,
+        metalness: 0.05,
+      }),
+    [tex],
+  );
 
   useFrame((state) => {
     const g = ref.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
-    const a = t * spec.speed * Math.PI * 2 + spec.phase;
-    g.position.set(Math.cos(a) * spec.radius, spec.y + Math.sin(t * 0.5 + spec.phase) * 0.16, Math.sin(a) * 1.5);
-    g.rotation.y = -a + Math.PI / 2 + Math.sin(t * 0.4 + spec.phase) * 0.12;
-    g.rotation.x = Math.sin(t * 0.33 + spec.phase) * 0.1;
-    const k = easeOut(THREE.MathUtils.clamp(enter.current - 0.45, 0, 1));
-    g.scale.setScalar(k);
+    if (bornRef.current === null) bornRef.current = t;
+    const a = t * slot.speed * Math.PI * 2 + slot.phase;
+    g.position.set(Math.cos(a) * slot.radius, slot.y + Math.sin(t * 0.5 + slot.phase) * 0.16, Math.sin(a) * 1.5);
+    g.rotation.y = -a + Math.PI / 2 + Math.sin(t * 0.4 + slot.phase) * 0.12;
+    g.rotation.x = Math.sin(t * 0.33 + slot.phase) * 0.1;
+    const kEnter = easeOut(THREE.MathUtils.clamp(enter.current - 0.45, 0, 1));
+    const kBorn = easeOut(THREE.MathUtils.clamp((t - bornRef.current) / 0.9, 0, 1));
+    g.scale.setScalar(Math.max(kEnter * kBorn, 0.0001));
   });
 
   return (
@@ -769,11 +907,13 @@ function Particles({ variant, theme, enter }: { variant: SceneProps['variant']; 
 type ConvObj = { kind: 'note'; idx: number } | { kind: 'coin'; idx: number };
 
 const CONVERSION_PAIRS: { from: ConvObj; to: ConvObj }[] = [
-  { from: { kind: 'note', idx: 1 }, to: { kind: 'note', idx: 0 } }, // USD → EUR
-  { from: { kind: 'note', idx: 0 }, to: { kind: 'note', idx: 2 } }, // EUR → TRY
-  { from: { kind: 'note', idx: 1 }, to: { kind: 'coin', idx: 2 } }, // USD → USDT (crypto/cash)
-  { from: { kind: 'note', idx: 2 }, to: { kind: 'note', idx: 1 } }, // TRY → USD
-  { from: { kind: 'coin', idx: 0 }, to: { kind: 'note', idx: 0 } }, // BTC → EUR
+  { from: { kind: 'note', idx: 0 }, to: { kind: 'note', idx: 1 } }, // USD → EUR
+  { from: { kind: 'note', idx: 1 }, to: { kind: 'note', idx: 2 } }, // EUR → TRY
+  { from: { kind: 'note', idx: 2 }, to: { kind: 'note', idx: 3 } }, // TRY → CNY
+  { from: { kind: 'note', idx: 0 }, to: { kind: 'coin', idx: 2 } }, // USD → USDT (crypto/cash)
+  { from: { kind: 'note', idx: 3 }, to: { kind: 'note', idx: 4 } }, // CNY → JPY
+  { from: { kind: 'note', idx: 4 }, to: { kind: 'note', idx: 0 } }, // JPY → USD
+  { from: { kind: 'coin', idx: 0 }, to: { kind: 'note', idx: 1 } }, // BTC → EUR
 ];
 
 const N_CONV = 56;
@@ -790,7 +930,7 @@ function ConvObject({
   ringRef?: React.RefObject<THREE.Mesh>;
 }) {
   const noteTex = React.useMemo(
-    () => (obj.kind === 'note' ? makePaperTexture(PAPERS_DESKTOP[obj.idx], 'light') : null),
+    () => (obj.kind === 'note' ? makePaperTexture(NOTE_DEFS[obj.idx]) : null),
     [obj],
   );
   const coinTex = React.useMemo(() => (obj.kind === 'coin' ? makeCoinFace(COIN_DEFS[obj.idx]) : null), [obj]);
@@ -806,8 +946,10 @@ function ConvObject({
     if (obj.kind === 'note') {
       const m = new THREE.MeshStandardMaterial({
         map: noteTex,
-        roughness: 0.75,
-        metalness: 0.06,
+        bumpMap: noteTex,
+        bumpScale: 0.25,
+        roughness: 0.72,
+        metalness: 0.05,
         transparent: true,
         opacity: 0,
       });
@@ -1015,7 +1157,12 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
     enter.current = Math.min(enter.current + delta * 0.68, 1.9);
   });
 
-  const papers = variant === 'mobile' ? PAPERS_DESKTOP.slice(0, 2) : PAPERS_DESKTOP;
+  const [noteSetIdx, setNoteSetIdx] = React.useState(0);
+  React.useEffect(() => {
+    const iv = setInterval(() => setNoteSetIdx((i) => (i + 1) % NOTE_SETS.length), 26000);
+    return () => clearInterval(iv);
+  }, []);
+  const noteIdxs = variant === 'mobile' ? [0, 1] : NOTE_SETS[noteSetIdx];
   const dark = theme === 'dark';
 
   return (
@@ -1035,8 +1182,8 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
       <Rig pointer={pointer}>
         <Core mats={mats} enter={enter} coreFlash={coreFlash} />
         <Rings mats={mats} variant={variant} enter={enter} />
-        {papers.map((spec) => (
-          <Paper key={spec.code} spec={spec} theme={theme} enter={enter} />
+        {noteIdxs.map((defIdx, i) => (
+          <Paper key={NOTE_DEFS[defIdx].code} def={NOTE_DEFS[defIdx]} slot={NOTE_SLOTS[i]} enter={enter} />
         ))}
         <Symbols mats={mats} variant={variant} enter={enter} />
         <CryptoCoins variant={variant} enter={enter} />
