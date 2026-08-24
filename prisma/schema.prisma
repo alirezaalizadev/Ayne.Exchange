@@ -47,6 +47,7 @@ model Admin {
   auditLogs     AuditLog[]
   quoteNotes    QuoteNote[]
   blogPosts     BlogPost[]
+  apiTokens     ApiRefreshToken[]
 
   @@map("admins")
 }
@@ -67,6 +68,43 @@ model AdminSession {
   @@index([adminId])
   @@index([expiresAt])
   @@map("admin_sessions")
+}
+
+// Rotating refresh tokens for the mobile API (token-based auth). The raw token
+// is returned once to the client; only its SHA-256 is stored. Rotation: each
+// refresh revokes the old row and links the replacement, so replayed (stolen)
+// tokens are detected and the whole family can be revoked.
+model ApiRefreshToken {
+  id           String    @id @default(cuid())
+  admin        Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  adminId      String
+  tokenHash    String    @unique
+  deviceLabel  String?   @db.VarChar(120)
+  ipHash       String?   @db.VarChar(64)
+  userAgent    String?   @db.Text
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("api_refresh_tokens")
+}
+
+// APNs device tokens for push on new quote requests (behind MOBILE_PUSH_ENABLED).
+model DeviceToken {
+  id        String   @id @default(cuid())
+  adminId   String?
+  token     String   @unique @db.VarChar(255)
+  platform  String   @default("ios") @db.VarChar(16)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([adminId])
+  @@map("device_tokens")
 }
 
 // ------------------------------ Quote requests ------------------------------

@@ -1,0 +1,1018 @@
+openapi: 3.1.0
+info:
+  title: Ayne Exchange Mobile API
+  version: 1.0.0
+  description: |
+    Versioned JSON API consumed by the Ayne Exchange iOS app. The web platform
+    remains the single source of truth: rate calculation, cross rates, quote
+    validation and content all reuse the same server-side services.
+
+    Conventions:
+    - All money and rate numerics are **decimal strings**, never floats.
+    - Success envelope: `{ "data": …, "meta"?: … }`.
+    - Error envelope: `{ "error": { "code", "message", "details"? } }` — no stack traces.
+    - Public transaction amounts are masked **server-side** per their privacy mode.
+    - `GET /rates` supports conditional requests (`ETag` / `If-None-Match`, `Last-Modified`).
+    - Admin endpoints require `Authorization: Bearer <accessToken>` (JWT, ~15 min)
+      obtained from `/admin/auth/login`; refresh tokens rotate on every use.
+servers:
+  - url: https://ayne.exchange/api/v1
+  - url: http://localhost:3000/api/v1
+tags:
+  - { name: Public }
+  - { name: Quotes }
+  - { name: AdminAuth }
+  - { name: Admin }
+
+paths:
+  /rates:
+    get:
+      tags: [Public]
+      summary: All published exchange rate pairs
+      responses:
+        '200':
+          description: Rates with currency metadata
+          headers:
+            ETag: { schema: { type: string } }
+            Last-Modified: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Rate' }
+                  meta: { $ref: '#/components/schemas/RatesMeta' }
+        '304': { description: Not modified }
+  /rates/featured:
+    get:
+      tags: [Public]
+      summary: Featured pairs (home ticker)
+      responses:
+        '200':
+          description: Featured rates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Rate' }
+  /convert:
+    post:
+      tags: [Public]
+      summary: Server-side conversion (same engine as the web calculator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to, amount]
+              properties:
+                from: { type: string, example: USD }
+                to: { type: string, example: IRR }
+                amount: { type: string, description: Decimal string, example: '100' }
+      responses:
+        '200':
+          description: Conversion result (decimal strings)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Conversion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /transactions:
+    get:
+      tags: [Public]
+      summary: Published transactions (paginated, filterable, amounts masked)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, maximum: 50 } }
+        - { name: service, in: query, schema: { type: string } }
+        - { name: currency, in: query, schema: { type: string } }
+        - { name: origin, in: query, schema: { type: string }, description: ISO-3166 alpha-2 }
+        - { name: destination, in: query, schema: { type: string } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - { name: ref, in: query, schema: { type: string }, description: Exact public reference }
+        - { name: featured, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Public transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PublicTransaction' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+  /transactions/{publicRef}:
+    get:
+      tags: [Public]
+      summary: One published transaction by public reference (AYN-…)
+      parameters:
+        - { name: publicRef, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PublicTransaction' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /services:
+    get:
+      tags: [Public]
+      summary: Service catalog with localized copy
+      parameters:
+        - { name: locale, in: query, schema: { type: string, enum: [en, fa, ru] } }
+      responses:
+        '200':
+          description: Services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Service' }
+  /services/{slug}:
+    get:
+      tags: [Public]
+      summary: One service by slug
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: locale, in: query, schema: { type: string, enum: [en, fa, ru] } }
+      responses:
+        '200':
+          description: Service
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Service' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /insights:
+    get:
+      tags: [Public]
+      summary: Published articles (no body)
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: pageSize, in: query, schema: { type: integer } }
+        - { name: locale, in: query, schema: { type: string, enum: [en, fa, ru] } }
+        - { name: category, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Articles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/InsightSummary' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+  /insights/{slug}:
+    get:
+      tags: [Public]
+      summary: One published article including body
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Article
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Insight' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /content/settings:
+    get:
+      tags: [Public]
+      summary: Public app configuration (contact, stats, currencies, languages, feature flags)
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Settings' }
+  /quotes:
+    post:
+      tags: [Quotes]
+      summary: Submit a quote request (same validation & limits as the web form)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteSubmission' }
+      responses:
+        '201':
+          description: Accepted — public reference returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      reference: { type: string, example: AYNE-Q-2026-48213 }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /analytics/events:
+    post:
+      tags: [Public]
+      summary: Record an allowlisted analytics event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [screen_view, quote_start, quote_submit, whatsapp_click, telegram_click, calculator_use, language_select]
+                path: { type: string }
+                locale: { type: string, enum: [en, fa, ru] }
+                meta:
+                  type: object
+                  description: 'Allowlisted keys only: screen, service, from, to, language, source'
+      responses:
+        '202': { description: Accepted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /admin/auth/login:
+    post:
+      tags: [AdminAuth]
+      summary: Sign in with an existing admin account
+      description: Same throttling, lockout and security logging as the web admin login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                totp: { type: string, description: Reserved — rejected until TOTP enrollment exists }
+                deviceLabel: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: Token pair + admin profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /admin/auth/refresh:
+    post:
+      tags: [AdminAuth]
+      summary: Rotate the refresh token, get a fresh access token
+      description: Replaying an already-rotated token revokes every token for the account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /admin/auth/logout:
+    post:
+      tags: [AdminAuth]
+      summary: Revoke a refresh token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Logged out (idempotent) }
+
+  /admin/overview:
+    get:
+      tags: [Admin]
+      summary: Dashboard metrics (same numbers as the web admin dashboard)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Overview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /admin/rates:
+    get:
+      tags: [Admin]
+      summary: All non-archived rates (incl. unpublished)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Admin rates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminRate' }
+    post:
+      tags: [Admin]
+      summary: Create a rate
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RateInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminRate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /admin/rates/bulk:
+    patch:
+      tags: [Admin]
+      summary: Bulk update buy/sell/manual values (one DB transaction)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 200
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id: { type: string }
+                      manualRate: { type: [string, number, 'null'] }
+                      buyRate: { type: [string, number, 'null'] }
+                      sellRate: { type: [string, number, 'null'] }
+      responses:
+        '200': { description: Updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /admin/rates/{id}:
+    get:
+      tags: [Admin]
+      summary: One rate
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Rate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminRate' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Admin]
+      summary: Update a rate (pair identity immutable; audited + history)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RateInput' }
+      responses:
+        '200':
+          description: Updated rate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminRate' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Admin]
+      summary: Archive a rate (soft delete)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Archived }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/rates/{id}/history:
+    get:
+      tags: [Admin]
+      summary: Rate change history (newest first)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 200 } }
+      responses:
+        '200':
+          description: History entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RateHistoryEntry' }
+  /admin/quotes:
+    get:
+      tags: [Admin]
+      summary: Quote requests (search / filter / paginate)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: pageSize, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/QuoteStatus' } }
+        - { name: service, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string }, description: Reference or contact value }
+      responses:
+        '200':
+          description: Quotes with status counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminQuote' }
+                  meta: { $ref: '#/components/schemas/QuotesMeta' }
+  /admin/quotes/{id}:
+    get:
+      tags: [Admin]
+      summary: One quote with notes
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Quote detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminQuoteDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Admin]
+      summary: Change status and/or add a note (audited)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { $ref: '#/components/schemas/QuoteStatus' }
+                addNote: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Updated quote detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminQuoteDetail' }
+  /admin/transactions:
+    get:
+      tags: [Admin]
+      summary: All non-deleted transactions (incl. unpublished)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: pageSize, in: query, schema: { type: integer, maximum: 100 } }
+        - { name: published, in: query, schema: { type: boolean } }
+        - { name: service, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Admin transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminTransaction' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+    post:
+      tags: [Admin]
+      summary: Create a transaction (public reference generated server-side)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransactionInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminTransaction' }
+  /admin/transactions/{id}:
+    get:
+      tags: [Admin]
+      summary: One transaction
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminTransaction' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Admin]
+      summary: Update / publish / unpublish / feature (audited)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransactionInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminTransaction' }
+    delete:
+      tags: [Admin]
+      summary: Soft-delete a transaction (audited)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/devices:
+    post:
+      tags: [Admin]
+      summary: Register an APNs device token (404 unless MOBILE_PUSH_ENABLED=true)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Registered }
+        '404': { description: Feature disabled }
+    delete:
+      tags: [Admin]
+      summary: Deactivate an APNs device token
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { description: Deactivated }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Missing/invalid credentials or token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ValidationError:
+      description: Field-level validation errors in `error.details`
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Too many requests (Retry-After header set)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [BAD_REQUEST, VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, CONFLICT, TOTP_REQUIRED, INTERNAL]
+            message: { type: string }
+            details:
+              type: object
+              additionalProperties: { type: string }
+    DecimalString:
+      type: [string, 'null']
+      description: Decimal encoded as a string ("32.61"); never a float.
+      example: '32.61'
+    CurrencyMeta:
+      type: object
+      properties:
+        code: { type: string, example: USD }
+        name: { type: string, example: US Dollar }
+        symbol: { type: string, example: $ }
+        decimals: { type: integer, example: 2 }
+        isCrypto: { type: boolean }
+        flag: { type: [string, 'null'], description: ISO-3166 country code for the flag badge }
+    Rate:
+      type: object
+      properties:
+        id: { type: string }
+        pair: { type: string, example: USD/TRY }
+        base: { type: string }
+        quote: { type: string }
+        label: { type: string }
+        buy: { $ref: '#/components/schemas/DecimalString' }
+        sell: { $ref: '#/components/schemas/DecimalString' }
+        displayRate: { $ref: '#/components/schemas/DecimalString' }
+        mode: { type: string, enum: [AUTO, MANUAL, ADJUSTED] }
+        provider: { type: string }
+        sourceLabel: { type: string }
+        featured: { type: boolean }
+        sortOrder: { type: integer }
+        displayDecimals: { type: [integer, 'null'] }
+        lastUpdatedAt: { type: string, format: date-time }
+        baseCurrency: { $ref: '#/components/schemas/CurrencyMeta' }
+        quoteCurrency: { $ref: '#/components/schemas/CurrencyMeta' }
+    RatesMeta:
+      type: object
+      properties:
+        count: { type: integer }
+        lastUpdatedAt: { type: [string, 'null'], format: date-time }
+    AdminRate:
+      allOf:
+        - { $ref: '#/components/schemas/Rate' }
+        - type: object
+          properties:
+            apiRate: { $ref: '#/components/schemas/DecimalString' }
+            manualRate: { $ref: '#/components/schemas/DecimalString' }
+            spreadPct: { $ref: '#/components/schemas/DecimalString' }
+            note: { type: [string, 'null'] }
+            isPublished: { type: boolean }
+            fetchedAt: { type: [string, 'null'], format: date-time }
+            createdAt: { type: string, format: date-time }
+    RateInput:
+      type: object
+      description: Decimal fields accept strings or numbers.
+      properties:
+        base: { type: string }
+        quote: { type: string }
+        sourceLabel: { type: string, default: market }
+        mode: { type: string, enum: [AUTO, MANUAL, ADJUSTED] }
+        manualRate: { type: [string, number, 'null'] }
+        apiRate: { type: [string, number, 'null'] }
+        buyRate: { type: [string, number, 'null'] }
+        sellRate: { type: [string, number, 'null'] }
+        spreadPct: { type: [string, number, 'null'] }
+        displayLabel: { type: [string, 'null'] }
+        displayDecimals: { type: [integer, 'null'] }
+        note: { type: [string, 'null'] }
+        isPublished: { type: boolean }
+        isFeatured: { type: boolean }
+        order: { type: integer }
+    RateHistoryEntry:
+      type: object
+      properties:
+        id: { type: string }
+        value: { $ref: '#/components/schemas/DecimalString' }
+        buy: { $ref: '#/components/schemas/DecimalString' }
+        sell: { $ref: '#/components/schemas/DecimalString' }
+        mode: { type: [string, 'null'] }
+        source: { type: [string, 'null'] }
+        changedBy: { type: [string, 'null'] }
+        recordedAt: { type: string, format: date-time }
+    Conversion:
+      type: object
+      properties:
+        from: { type: string }
+        to: { type: string }
+        amount: { type: string }
+        result: { $ref: '#/components/schemas/DecimalString' }
+        rate: { $ref: '#/components/schemas/DecimalString' }
+        decimals: { type: integer }
+        asOf: { type: [string, 'null'], format: date-time }
+    PublicTransaction:
+      type: object
+      description: Amounts are masked server-side per amountMode.
+      properties:
+        publicRef: { type: string, example: AYN-260614-DM01 }
+        originCountry: { type: string }
+        originCity: { type: [string, 'null'] }
+        destinationCountry: { type: string }
+        destinationCity: { type: [string, 'null'] }
+        originCountryName: { type: [string, 'null'] }
+        destinationCountryName: { type: [string, 'null'] }
+        currency: { type: string }
+        currencyMeta: { $ref: '#/components/schemas/CurrencyMeta' }
+        amount: { $ref: '#/components/schemas/DecimalString' }
+        amountMode: { type: string, enum: [EXACT, ROUNDED, RANGE, HIDDEN] }
+        rangeMin: { $ref: '#/components/schemas/DecimalString' }
+        rangeMax: { $ref: '#/components/schemas/DecimalString' }
+        serviceKey: { type: string }
+        paymentMethod: { type: [string, 'null'] }
+        status: { type: string, enum: [COMPLETED, PROCESSING, PENDING, CANCELLED] }
+        occurredOn: { type: string, format: date-time }
+        featured: { type: boolean }
+    AdminTransaction:
+      type: object
+      properties:
+        id: { type: string }
+        publicRef: { type: [string, 'null'] }
+        originCountry: { type: string }
+        originCity: { type: [string, 'null'] }
+        destinationCountry: { type: string }
+        destinationCity: { type: [string, 'null'] }
+        currency: { type: string }
+        displayAmount: { $ref: '#/components/schemas/DecimalString' }
+        amountDisplayMode: { type: string, enum: [EXACT, ROUNDED, RANGE, HIDDEN] }
+        amountRangeMin: { $ref: '#/components/schemas/DecimalString' }
+        amountRangeMax: { $ref: '#/components/schemas/DecimalString' }
+        serviceKey: { type: string }
+        paymentMethod: { type: [string, 'null'] }
+        status: { type: string }
+        occurredOn: { type: string, format: date-time }
+        note: { type: [string, 'null'] }
+        isPublished: { type: boolean }
+        isFeatured: { type: boolean }
+        order: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TransactionInput:
+      type: object
+      description: Decimal fields accept strings or numbers.
+      properties:
+        originCountry: { type: string, description: ISO-3166 alpha-2 }
+        originCity: { type: [string, 'null'] }
+        destinationCountry: { type: string }
+        destinationCity: { type: [string, 'null'] }
+        currency: { type: string }
+        displayAmount: { type: [string, number] }
+        amountDisplayMode: { type: string, enum: [EXACT, ROUNDED, RANGE, HIDDEN] }
+        amountRangeMin: { type: [string, number, 'null'] }
+        amountRangeMax: { type: [string, number, 'null'] }
+        serviceKey: { type: string }
+        paymentMethod: { type: [string, 'null'] }
+        status: { type: string, enum: [COMPLETED, PROCESSING, PENDING, CANCELLED] }
+        occurredOn: { type: string, format: date-time }
+        note: { type: [string, 'null'] }
+        isPublished: { type: boolean }
+        isFeatured: { type: boolean }
+        order: { type: integer }
+    Service:
+      type: object
+      properties:
+        key: { type: string, example: swift }
+        slug: { type: string, example: swift-payments }
+        icon: { type: string, description: Lucide icon name (mapped to SF Symbols in the app) }
+        accent: { type: string, enum: [primary, accent] }
+        name: { type: string }
+        summary: { type: string }
+        sortOrder: { type: integer }
+    InsightSummary:
+      type: object
+      properties:
+        slug: { type: string }
+        locale: { type: string }
+        title: { type: string }
+        excerpt: { type: string }
+        coverImage: { type: [string, 'null'] }
+        readingMinutes: { type: integer }
+        authorName: { type: [string, 'null'] }
+        category:
+          type: [object, 'null']
+          properties:
+            slug: { type: string }
+            name: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        publishedAt: { type: [string, 'null'], format: date-time }
+    Insight:
+      allOf:
+        - { $ref: '#/components/schemas/InsightSummary' }
+        - type: object
+          properties:
+            body: { type: string }
+    Settings:
+      type: object
+      properties:
+        brand:
+          type: object
+          properties:
+            name: { type: string }
+        contact:
+          type: object
+          properties:
+            whatsapp: { type: string }
+            telegram: { type: string }
+            email: { type: string }
+        stats:
+          type: object
+          properties:
+            yearsExperience: { type: string }
+            transactionVolume: { type: string }
+            network: { type: string }
+            routes: { type: string }
+        currencies:
+          type: array
+          items: { $ref: '#/components/schemas/CurrencyMeta' }
+        languages:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              label: { type: string }
+              native: { type: string }
+              dir: { type: string, enum: [ltr, rtl] }
+        features:
+          type: object
+          properties:
+            pushNotifications: { type: boolean }
+    QuoteStatus:
+      type: string
+      enum: [NEW, REVIEWING, CONTACTED, QUOTED, COMPLETED, REJECTED, ARCHIVED]
+    QuoteSubmission:
+      type: object
+      required: [serviceKey, clientType, contactMethod, contactValue, consent]
+      properties:
+        serviceKey: { type: string, example: swift }
+        sendAmount: { type: [string, number, 'null'], description: Decimal string preferred }
+        sendCurrency: { type: [string, 'null'] }
+        receiveCurrency: { type: [string, 'null'] }
+        originCountry: { type: [string, 'null'] }
+        destinationCountry: { type: [string, 'null'] }
+        purpose: { type: string, maxLength: 500 }
+        clientType: { type: string, enum: [BUSINESS, INDIVIDUAL] }
+        timing: { type: string, maxLength: 64 }
+        notes: { type: string, maxLength: 1500 }
+        contactMethod: { type: string, enum: [WHATSAPP, TELEGRAM, EMAIL, PHONE] }
+        contactValue: { type: string }
+        consent: { type: boolean, const: true }
+        locale: { type: string, enum: [en, fa, ru] }
+        company_website: { type: string, maxLength: 0, description: Honeypot — leave empty }
+    AdminQuote:
+      type: object
+      properties:
+        id: { type: string }
+        reference: { type: string }
+        serviceKey: { type: string }
+        sendAmount: { $ref: '#/components/schemas/DecimalString' }
+        sendCurrency: { type: [string, 'null'] }
+        receiveCurrency: { type: [string, 'null'] }
+        originCountry: { type: [string, 'null'] }
+        destinationCountry: { type: [string, 'null'] }
+        purpose: { type: [string, 'null'] }
+        clientType: { type: string }
+        timing: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        contactMethod: { type: string }
+        contactValue: { type: string }
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        locale: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminQuoteDetail:
+      allOf:
+        - { $ref: '#/components/schemas/AdminQuote' }
+        - type: object
+          properties:
+            notes_list:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  body: { type: string }
+                  author: { type: [string, 'null'] }
+                  createdAt: { type: string, format: date-time }
+    QuotesMeta:
+      allOf:
+        - { $ref: '#/components/schemas/PageMeta' }
+        - type: object
+          properties:
+            statusCounts:
+              type: object
+              additionalProperties: { type: integer }
+    AuthSession:
+      type: object
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        refreshToken: { type: string }
+        refreshTokenExpiresAt: { type: string, format: date-time }
+        admin:
+          type: object
+          properties:
+            id: { type: string }
+            email: { type: string }
+            name: { type: string }
+            role: { type: string, enum: [OWNER, ADMIN, EDITOR] }
+    Overview:
+      type: object
+      properties:
+        totalEnquiries: { type: integer }
+        newEnquiries: { type: integer }
+        enquiriesLast7Days: { type: integer }
+        conversionPct: { type: integer }
+        publishedTransactions: { type: integer }
+        publishedRates: { type: integer }
+        whatsappClicks: { type: integer }
+        latestQuotes:
+          type: array
+          items: { $ref: '#/components/schemas/AdminQuote' }
+    PageMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }

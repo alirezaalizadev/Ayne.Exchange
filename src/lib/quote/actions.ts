@@ -32,6 +32,18 @@ export async function submitQuote(raw: unknown): Promise<QuoteActionResult> {
     };
   }
 
+  // Honeypot BEFORE validation: silently accept-but-drop bot submissions.
+  // (A filled honeypot would otherwise fail the schema's max(0) rule and
+  // return field errors — revealing the trap instead of dropping the bot.)
+  if (
+    typeof raw === 'object' &&
+    raw !== null &&
+    typeof (raw as Record<string, unknown>).company_website === 'string' &&
+    ((raw as Record<string, unknown>).company_website as string).length > 0
+  ) {
+    return { ok: true, reference: 'AYNE-Q-0000-00000' };
+  }
+
   // Validate.
   const parsed = quoteSchema.safeParse(raw);
   if (!parsed.success) {
@@ -44,11 +56,6 @@ export async function submitQuote(raw: unknown): Promise<QuoteActionResult> {
   }
 
   const data = parsed.data;
-
-  // Honeypot: silently accept-but-drop bot submissions (don't reveal the trap).
-  if (data.company_website && data.company_website.length > 0) {
-    return { ok: true, reference: 'AYNE-Q-0000-00000' };
-  }
 
   // Contact format check.
   if (!validateContactValue(data.contactMethod, data.contactValue)) {

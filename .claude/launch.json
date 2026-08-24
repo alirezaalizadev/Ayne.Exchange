@@ -2,13 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
-      "runtimeExecutable": "npm",
+      "name": "ayne-dev",
+      "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "run",
-        "dev"
+        "-lc",
+        "export PATH=\"$HOME/tools/node/bin:$PATH\" && cd /Users/alireza/Downloads/ayne && npm run dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "trading-frontend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"$HOME/tools/node/bin:$PATH\" && cd /Users/alireza/Downloads/trading-platform/frontend && pnpm dev"
+      ],
+      "port": 3001
     }
   ]
 }
