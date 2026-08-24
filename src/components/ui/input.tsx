@@ -9,7 +9,7 @@ export const Input = React.forwardRef<
     ref={ref}
     aria-invalid={invalid || undefined}
     className={cn(
-      'h-11 w-full rounded-lg border bg-surface px-3 text-sm transition-colors',
+      'h-12 w-full rounded-xl border bg-surface px-3 text-sm transition-colors',
       'placeholder:text-muted-foreground/60',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       invalid ? 'border-destructive focus:border-destructive' : 'border-input focus:border-primary',

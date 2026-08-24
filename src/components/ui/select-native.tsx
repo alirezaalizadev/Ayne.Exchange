@@ -15,7 +15,7 @@ export const SelectNative = React.forwardRef<
     <select
       ref={ref}
       className={cn(
-        'h-11 w-full appearance-none rounded-lg border border-input bg-surface ps-3 pe-9 text-sm',
+        'h-12 w-full appearance-none rounded-xl border border-input bg-surface ps-3 pe-9 text-sm',
         'transition-colors focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,

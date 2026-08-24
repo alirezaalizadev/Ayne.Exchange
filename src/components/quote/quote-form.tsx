@@ -131,7 +131,7 @@ export function QuoteForm() {
   }
 
   return (
-    <div className="surface-card p-6 sm:p-8">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
       <Stepper step={step} />
 
       {result && !result.ok && result.error && (
@@ -151,7 +151,7 @@ export function QuoteForm() {
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           >
             {step === 0 && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label={t('serviceType')} error={errors.serviceKey} className="sm:col-span-2">
                   <SelectNative value={form.serviceKey} onChange={(e) => set('serviceKey', e.target.value)}>
                     {services.map((s) => (
@@ -178,7 +178,7 @@ export function QuoteForm() {
                         type="button"
                         onClick={() => set('clientType', ct)}
                         className={cn(
-                          'h-11 rounded-lg border text-sm font-medium transition-colors',
+                          'h-12 rounded-xl border text-sm font-semibold transition-colors',
                           form.clientType === ct
                             ? 'border-primary bg-primary/10 text-primary'
                             : 'border-input text-muted-foreground hover:border-primary/40',
@@ -207,7 +207,7 @@ export function QuoteForm() {
             )}
 
             {step === 1 && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label={t('originCountry')}>
                   <SelectNative value={form.originCountry} onChange={(e) => set('originCountry', e.target.value)}>
                     <option value="">—</option>
@@ -245,7 +245,7 @@ export function QuoteForm() {
             )}
 
             {step === 2 && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label={t('contactMethod')}>
                   <SelectNative
                     value={form.contactMethod}
@@ -338,15 +338,15 @@ function Stepper({ step }: { step: number }) {
           <li key={key} className="flex flex-1 items-center gap-2">
             <span
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors',
-                done && 'border-primary bg-primary text-primary-foreground',
-                active && 'border-primary text-primary',
-                !active && !done && 'border-border text-muted-foreground',
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all duration-base',
+                done && 'bg-primary text-primary-foreground',
+                active && 'bg-primary/10 text-primary ring-2 ring-primary',
+                !active && !done && 'bg-muted text-muted-foreground',
               )}
             >
               {done ? <Check className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={cn('hidden text-xs font-medium sm:block', active ? 'text-foreground' : 'text-muted-foreground')}>
+            <span className={cn('hidden text-xs font-semibold sm:block', active ? 'text-foreground' : 'text-muted-foreground')}>
               {t(key)}
             </span>
             {i < STEP_KEYS.length - 1 && <span className="h-px flex-1 bg-border" />}
@@ -386,7 +386,7 @@ function QuoteSuccess({ reference }: { reference: string }) {
   const t = useTranslations('quote');
   const [copied, setCopied] = React.useState(false);
   return (
-    <div className="surface-card p-8 text-center">
+    <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
         <Check className="h-7 w-7" />
       </div>
