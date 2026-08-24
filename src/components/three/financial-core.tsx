@@ -226,6 +226,8 @@ function Rings({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>
 
 interface PaperSpec {
   amount: string;
+  currencyName: string;
+  symbol: string;
   code: string;
   word: string;
   finish: 'paper' | 'navy' | 'glass';
@@ -236,10 +238,10 @@ interface PaperSpec {
 }
 
 const PAPERS_DESKTOP: PaperSpec[] = [
-  { amount: '€ 10,000', code: 'EUR', word: 'TRANSFER', finish: 'paper', radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
-  { amount: '$ 25,000', code: 'USD', word: 'PAYMENT', finish: 'navy', radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
-  { amount: '₺ 500,000', code: 'TRY', word: 'EXCHANGE', finish: 'paper', radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
-  { amount: '£ 8,500', code: 'GBP', word: 'TRANSFER', finish: 'glass', radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
+  { amount: '10,000', currencyName: 'EURO', symbol: '€', code: 'EUR', word: 'TRANSFER', finish: 'paper', radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
+  { amount: '25,000', currencyName: 'US DOLLAR', symbol: '$', code: 'USD', word: 'PAYMENT', finish: 'navy', radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
+  { amount: '500,000', currencyName: 'TURKISH LIRA', symbol: '₺', code: 'TRY', word: 'EXCHANGE', finish: 'paper', radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
+  { amount: '8,500', currencyName: 'POUND STERLING', symbol: '£', code: 'GBP', word: 'TRANSFER', finish: 'glass', radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
 ];
 
 /** Procedural note texture: AYNE branding, amount, code, word, guilloche. */
@@ -281,29 +283,42 @@ function makePaperTexture(spec: PaperSpec, theme: 'light' | 'dark'): THREE.Canva
     x.fillRect((i * 97) % w, (i * 53) % h, 1.5, 1.5);
   }
 
+  // ghost currency-symbol watermark (large, translucent, end side)
+  x.font = `800 190px ${family}`;
+  x.fillStyle = navy ? 'rgba(232,236,245,0.08)' : 'rgba(28,35,51,0.07)';
+  const sw = x.measureText(spec.symbol).width;
+  x.fillText(spec.symbol, w - sw - 30, h - 42);
+
   // AYNE wordmark
   x.fillStyle = ink;
-  x.font = `800 34px ${family}`;
-  x.fillText('AYNE', 32, 58);
-  x.font = `600 13px ${family}`;
+  x.font = `800 32px ${family}`;
+  x.fillText('AYNE', 32, 56);
+  x.font = `600 12px ${family}`;
   x.fillStyle = sub;
-  x.fillText('E X C H A N G E', 33, 80);
+  x.fillText('E X C H A N G E', 33, 77);
 
   // word (top-end)
-  x.font = `700 16px ${family}`;
+  x.font = `700 15px ${family}`;
   x.fillStyle = navy ? P.accentSoft : P.accent;
   const ww = x.measureText(spec.word).width;
-  x.fillText(spec.word, w - ww - 34, 56);
+  x.fillText(spec.word, w - ww - 34, 54);
 
-  // amount (large)
+  // the denomination as one composed whole: amount over the full currency name
   x.fillStyle = ink;
-  x.font = `800 52px ${family}`;
-  x.fillText(spec.amount, 32, h - 62);
-
-  // code chip
-  x.font = `700 18px ${family}`;
+  x.font = `800 58px ${family}`;
+  x.fillText(spec.amount, 32, h - 84);
+  x.font = `700 19px ${family}`;
+  x.fillStyle = navy ? P.accentSoft : P.accent;
+  // letterspaced currency name
+  let cx0 = 33;
+  for (const ch of spec.currencyName) {
+    x.fillText(ch, cx0, h - 46);
+    cx0 += x.measureText(ch).width + 5;
+  }
+  // small code chip under the name
+  x.font = `600 13px ${family}`;
   x.fillStyle = sub;
-  x.fillText(spec.code, 34, h - 26);
+  x.fillText(spec.code, 34, h - 20);
 
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
