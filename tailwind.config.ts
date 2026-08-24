@@ -75,16 +75,16 @@ const config: Config = {
         '2xl': 'var(--radius-2xl)',
       },
       fontFamily: {
-        // Display and sans are the SAME family (Manrope) — differ by weight only.
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        // Display = the same sans, heavier — typography leads, one family.
         display: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       fontSize: {
-        'display-lg': ['clamp(2.75rem, 6vw, 4.5rem)', { lineHeight: '1.02', letterSpacing: '-0.03em' }],
-        display: ['clamp(2.25rem, 5vw, 3.5rem)', { lineHeight: '1.05', letterSpacing: '-0.025em' }],
-        h1: ['clamp(1.875rem, 3.5vw, 2.75rem)', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
-        h2: ['clamp(1.5rem, 2.5vw, 2rem)', { lineHeight: '1.15', letterSpacing: '-0.015em' }],
+        'display-lg': ['clamp(2.75rem, 7vw, 5.5rem)', { lineHeight: '1.0', letterSpacing: '-0.035em' }],
+        display: ['clamp(2.25rem, 5vw, 4rem)', { lineHeight: '1.04', letterSpacing: '-0.03em' }],
+        h1: ['clamp(1.875rem, 3.5vw, 2.875rem)', { lineHeight: '1.08', letterSpacing: '-0.025em' }],
+        h2: ['clamp(1.5rem, 2.5vw, 2.125rem)', { lineHeight: '1.14', letterSpacing: '-0.02em' }],
         h3: ['clamp(1.25rem, 1.8vw, 1.5rem)', { lineHeight: '1.25', letterSpacing: '-0.01em' }],
       },
       boxShadow: {

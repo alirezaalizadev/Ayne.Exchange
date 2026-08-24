@@ -4,15 +4,16 @@ import * as React from 'react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
 /**
- * Wraps next-themes. Dark is the primary experience; system preference is
- * respected on first visit, and the choice is persisted to localStorage.
+ * Wraps next-themes. LIGHT is now the primary experience (bright, airy,
+ * Wise-inspired); dark remains fully supported via the toggle and persists
+ * to localStorage.
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="dark"
-      enableSystem
+      defaultTheme="light"
+      enableSystem={false}
       disableTransitionOnChange
     >
       {children}

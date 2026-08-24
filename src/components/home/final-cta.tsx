@@ -4,28 +4,38 @@ import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Reveal } from '@/components/ui/reveal';
 
+/** Strong accent-colored closing band: bold white headline, white pill CTA. */
 export function FinalCta() {
   const t = useTranslations('finalCta');
 
   return (
-    <section className="relative overflow-hidden py-20 sm:py-28">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-radial-glow opacity-80" />
-        <div className="absolute inset-0 grid-texture opacity-50" />
-      </div>
+    <section className="bg-primary py-16 text-primary-foreground sm:py-24">
       <div className="container">
         <Reveal>
-          <div className="mx-auto max-w-2xl rounded-2xl border border-border glass p-8 text-center shadow-lg sm:p-12">
-            <h2 className="text-h1 font-semibold text-balance">{t('title')}</h2>
-            <p className="mx-auto mt-4 max-w-lg text-base text-muted-foreground">{t('subtitle')}</p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild variant="cta" size="xl" className="w-full sm:w-auto">
+          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <h2 className="max-w-[18ch] text-display text-balance text-primary-foreground">
+                {t('title')}
+              </h2>
+              <p className="mt-4 max-w-[32rem] text-lg text-primary-foreground/80">{t('subtitle')}</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row lg:col-span-4 lg:col-start-9 lg:justify-end">
+              <Button
+                asChild
+                size="xl"
+                className="bg-background text-foreground hover:bg-background hover:brightness-95"
+              >
                 <Link href="/request-quote">
                   {t('primary')}
                   <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
+              <Button
+                asChild
+                size="xl"
+                variant="ghost"
+                className="border-2 border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10"
+              >
                 <Link href="/contact">{t('secondary')}</Link>
               </Button>
             </div>

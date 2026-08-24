@@ -83,14 +83,7 @@ export function ExchangeCalculator({
   const quoteHref = `/request-quote?service=exchange&from=${from}&to=${to}&amount=${Math.round(value)}`;
 
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg',
-        // subtle inner illumination
-        'before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-40',
-        'before:bg-[radial-gradient(60%_100%_at_50%_0%,hsl(var(--primary)/0.10),transparent_75%)]',
-      )}
-    >
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-md">
       {/* Header */}
       <div className="relative flex items-center justify-between border-b border-border/70 px-6 py-4">
         <div className="flex items-center gap-3">
@@ -150,8 +143,8 @@ export function ExchangeCalculator({
                 aria-label={t('swapTooltip')}
                 className={cn(
                   'relative z-10 inline-flex h-11 w-11 items-center justify-center rounded-full',
-                  'border border-primary/30 bg-card text-primary shadow-glow',
-                  'transition-all duration-base ease-premium hover:scale-105 active:scale-95',
+                  'bg-primary text-primary-foreground shadow-sm',
+                  'transition-all duration-base ease-premium hover:scale-105 hover:brightness-110 active:scale-95',
                 )}
               >
                 <ArrowUpDown

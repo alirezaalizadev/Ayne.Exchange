@@ -1,9 +1,9 @@
 import { Manrope, Vazirmatn, JetBrains_Mono } from 'next/font/google';
 
 /**
- * ONE English/Latin + Cyrillic family across the whole site — Manrope (variable,
- * full weight range + high-quality Cyrillic for Russian). Headings and body use
- * the SAME family, differentiated only by weight.
+ * ONE Latin/Cyrillic family across the whole site — Manrope (variable, full
+ * weight range, high-quality Cyrillic). Headlines use heavy weights (700–800)
+ * of the SAME family; there is deliberately no second display face.
  */
 export const fontSans = Manrope({
   subsets: ['latin', 'latin-ext', 'cyrillic'],

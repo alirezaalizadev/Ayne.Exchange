@@ -4,6 +4,7 @@ import { Reveal } from '@/components/ui/reveal';
 import { homeStats } from '@/lib/config/stats';
 import { StatCounter } from './stat-counter';
 
+/** Trust figures: huge bold numerals, quiet labels, no boxes. */
 export function StatsSection() {
   const t = useTranslations('stats');
 
@@ -11,11 +12,11 @@ export function StatsSection() {
     <Section>
       <SectionHeading eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
 
-      <div className="mx-auto mt-12 grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-4">
         {homeStats.map((s, i) => (
-          <Reveal key={s.labelKey} delay={i * 0.08}>
-            <div className="surface-card h-full p-6 text-center">
-              <div className="font-display text-4xl font-semibold text-gradient sm:text-5xl">
+          <Reveal key={s.labelKey} delay={i * 0.06}>
+            <div>
+              <div className="text-4xl font-extrabold tracking-tight text-primary sm:text-5xl lg:text-6xl">
                 <StatCounter
                   to={s.to}
                   prefix={s.prefix}
@@ -23,7 +24,7 @@ export function StatsSection() {
                   text={s.textKey ? t(s.textKey) : undefined}
                 />
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">{t(s.labelKey)}</p>
+              <p className="mt-3 max-w-[15rem] text-sm leading-snug text-muted-foreground">{t(s.labelKey)}</p>
             </div>
           </Reveal>
         ))}

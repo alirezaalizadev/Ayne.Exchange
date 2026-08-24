@@ -17,25 +17,26 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-primary text-primary-foreground shadow-sm hover:shadow-glow hover:-translate-y-0.5 active:translate-y-0',
+          'bg-primary text-primary-foreground hover:brightness-110 active:translate-y-px active:brightness-95',
         cta:
-          'bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md ' +
-          'hover:shadow-glow hover:-translate-y-0.5 active:translate-y-0',
+          'bg-primary text-primary-foreground font-bold ' +
+          'hover:brightness-110 hover:shadow-md active:translate-y-px active:brightness-95',
         secondary:
-          'bg-surface-raised text-foreground border border-border hover:bg-muted hover:-translate-y-0.5 active:translate-y-0',
+          'bg-muted text-foreground hover:bg-muted/70 active:translate-y-px',
         outline:
-          'border border-border bg-transparent text-foreground hover:bg-muted/60 hover:border-primary/40',
+          'border-2 border-foreground/80 bg-transparent text-foreground hover:bg-foreground hover:text-background active:translate-y-px',
         ghost: 'bg-transparent text-foreground hover:bg-muted/60',
         danger:
-          'bg-destructive text-destructive-foreground shadow-sm hover:brightness-110 active:brightness-95',
+          'bg-destructive text-destructive-foreground hover:brightness-110 active:brightness-95',
         icon: 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60',
       },
       size: {
-        sm: 'h-9 rounded-md px-3 text-sm',
-        md: 'h-11 rounded-lg px-5 text-sm',
-        lg: 'h-12 rounded-lg px-7 text-base',
-        xl: 'h-14 rounded-xl px-8 text-base font-semibold',
-        icon: 'h-10 w-10 rounded-lg',
+        // Pill buttons everywhere — big, soft, friendly.
+        sm: 'h-9 rounded-full px-4 text-sm',
+        md: 'h-11 rounded-full px-6 text-sm',
+        lg: 'h-12 rounded-full px-7 text-base',
+        xl: 'h-14 rounded-full px-9 text-base font-bold',
+        icon: 'h-10 w-10 rounded-full',
       },
     },
     defaultVariants: {

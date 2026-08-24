@@ -28,7 +28,8 @@ export function Footer() {
   ];
 
   return (
-    <footer className="relative border-t border-border bg-surface">
+    // `dark` rescopes the token set — the footer is a deep band in both themes.
+    <footer className="dark relative bg-background text-foreground">
       <div className="container py-14">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-6">
           {/* Brand */}
