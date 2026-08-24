@@ -125,7 +125,17 @@
     "connections": "соединений: {count}",
     "statLocations": "Локации",
     "statRegions": "Регионы",
-    "statRoutes": "Маршруты"
+    "statRoutes": "Маршруты",
+    "panelTitle": "Текущие соединения",
+    "activityLabel": "Глобальная сеть",
+    "activityValues": "локаций: {locations} · активных маршрутов: {routes}",
+    "legend": "Легенда",
+    "legendHub": "Глобальный хаб",
+    "legendRegional": "Региональный хаб",
+    "legendLine": "Линия сети",
+    "legendActive": "Активный маршрут",
+    "pause": "Пауза анимации",
+    "resume": "Продолжить анимацию"
   },
   "calculator": {
     "eyebrow": "Калькулятор обмена",

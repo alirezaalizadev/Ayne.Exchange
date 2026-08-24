@@ -1,20 +1,41 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { SectionHeading } from '@/components/ui/section';
-import { GlobalNetworkMap } from './global-network-map';
+import { NetworkLazy } from './network-lazy';
 import { locations, REGION_COUNT } from '@/lib/config/network-locations';
-import { routes } from '@/lib/config/network-routes';
+import { routes, routeById, countryToCity } from '@/lib/config/network-routes';
+import { getPublicTransactions } from '@/lib/transactions/service';
 import { formatNumber } from '@/lib/format';
 
 /**
- * Global payment network — immersive full-width section. The map blends into
- * the section background (radial illumination + vignette); no card boundary.
- * Stat row values are computed from the network config — visualization
- * metadata only, never transaction claims.
+ * Global payment network — immersive full-width section. Stat row values come
+ * from the network config (visualization metadata only).
+ *
+ * Transaction-link layer: when published display-transactions match configured
+ * corridors, those route ids are passed for gentle emphasis. Purely optional —
+ * the map works fully with zero transactions, and an animation never claims to
+ * be a live payment.
  */
 export async function NetworkSection({ locale: localeProp }: { locale: string }) {
   const t = await getTranslations('network');
   const locale = localeProp || (await getLocale());
   const n = (v: number) => formatNumber(v, locale, { maximumFractionDigits: 0 });
+
+  // Loosely-coupled emphasis routes from published transactions (never required).
+  let emphasisRouteIds: string[] = [];
+  try {
+    const txs = await getPublicTransactions();
+    const ids = new Set<string>();
+    for (const tx of txs.slice(0, 20)) {
+      const a = countryToCity[tx.originCountry];
+      const b = countryToCity[tx.destinationCountry];
+      if (!a || !b || a === b) continue;
+      if (routeById[`${a}-${b}`]) ids.add(`${a}-${b}`);
+      else if (routeById[`${b}-${a}`]) ids.add(`${b}-${a}`);
+    }
+    emphasisRouteIds = [...ids].slice(0, 6);
+  } catch {
+    /* map must work with zero transaction data */
+  }
 
   const stats = [
     { value: n(locations.length), label: t('statLocations') },
@@ -42,7 +63,6 @@ export async function NetworkSection({ locale: localeProp }: { locale: string })
       <div className="container relative pt-16 sm:pt-24 lg:pt-28">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <SectionHeading eyebrow={t('eyebrow')} title={t('title')} subtitle={t('subtitle')} />
-          {/* Compact stat row — from config */}
           <div className="flex shrink-0 items-center gap-6 pb-1" dir="ltr">
             {stats.map((s) => (
               <div key={s.label} className="text-start rtl:text-end">
@@ -54,9 +74,9 @@ export async function NetworkSection({ locale: localeProp }: { locale: string })
         </div>
       </div>
 
-      {/* Full-width map, no card */}
+      {/* Full-width map + floating UI, no card boundary */}
       <div className="relative mx-auto mt-6 w-full max-w-[1600px] px-2 pb-10 sm:mt-10 sm:px-6 lg:pb-14">
-        <GlobalNetworkMap />
+        <NetworkLazy locationCount={locations.length} emphasisRouteIds={emphasisRouteIds} />
       </div>
     </section>
   );

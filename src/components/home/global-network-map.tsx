@@ -37,7 +37,7 @@ const G = networkGeometry;
 const VIEWBOX = {
   desktop: { x: 60, y: 25, w: 1120, h: 555 },
   tablet: { x: 260, y: 35, w: 940, h: 500 },
-  mobile: { x: 555, y: 65, w: 530, h: 330 },
+  mobile: { x: 512, y: 60, w: 575, h: 340 },
 } as const;
 
 type Breakpoint = keyof typeof VIEWBOX;
@@ -72,19 +72,36 @@ export interface TransferInfo {
   to: NetworkLocation;
 }
 
+export interface NetworkTick {
+  activeCount: number;
+  transfers: TransferInfo[];
+}
+
 export function GlobalNetworkMap({
   className,
-  onTransfersChange,
+  onTick,
+  onReady,
+  userPaused = false,
+  emphasisRouteIds = [],
 }: {
   className?: string;
-  /** Step-4 hook: side panel subscribes to the current TRANSFER list. */
-  onTransfersChange?: (transfers: TransferInfo[]) => void;
+  /** Fires on each scheduler tick with the live visualization state. */
+  onTick?: (tick: NetworkTick) => void;
+  /** Fires once when the entrance sequence has settled. */
+  onReady?: () => void;
+  /** External pause control (adds to auto viewport/tab pausing). */
+  userPaused?: boolean;
+  /** Route ids to gently emphasize (transaction-link layer). */
+  emphasisRouteIds?: string[];
 }) {
   const t = useTranslations('network');
   const reduce = useReducedMotion();
   const wrapRef = React.useRef<HTMLDivElement>(null);
+  const svgRef = React.useRef<SVGSVGElement>(null);
 
   const [paused, setPaused] = React.useState(false);
+  // Entrance stages: 0 hidden · 1 map+hubs · 2 arcs+nodes · 3 particles · 4 settled
+  const [stage, setStage] = React.useState(0);
   const [bp, setBp] = React.useState<Breakpoint>('desktop');
   const [hoverCity, setHoverCity] = React.useState<string | null>(null);
   const [hoverRoute, setHoverRoute] = React.useState<string | null>(null);
@@ -131,6 +148,51 @@ export function GlobalNetworkMap({
     };
   }, []);
 
+  /* ---------- staged entrance (once per visit) ---------- */
+  const startedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (startedRef.current) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    if (reduce) {
+      startedRef.current = true;
+      setStage(4);
+      onReady?.();
+      return;
+    }
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting || startedRef.current) return;
+      startedRef.current = true;
+      setStage(1);
+      const t1 = setTimeout(() => setStage(2), 700);
+      const t2 = setTimeout(() => setStage(3), 1700);
+      const t3 = setTimeout(() => {
+        setStage(4);
+        onReady?.();
+      }, 2600);
+      timersRef.current = [t1, t2, t3];
+      io.disconnect();
+    }, { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduce]);
+  const timersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
+  React.useEffect(() => () => timersRef.current.forEach(clearTimeout), []);
+
+  /* ---------- truly pause SMIL + CSS when idle ---------- */
+  const isPaused = paused || userPaused;
+  React.useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    try {
+      if (isPaused) svg.pauseAnimations();
+      else svg.unpauseAnimations();
+    } catch {
+      /* older engines */
+    }
+  }, [isPaused]);
+
   /* ---------- visible subsets (memoized) ---------- */
   const visibleLocations = React.useMemo(() => {
     if (bp === 'mobile') return locations.filter((l) => MOBILE_LOCATION_IDS.has(l.id));
@@ -157,7 +219,7 @@ export function GlobalNetworkMap({
       setTransferIds(new Set());
       return;
     }
-    if (paused) return;
+    if (isPaused) return;
 
     const caps = CAPS[bp];
     const tick = () => {
@@ -176,23 +238,31 @@ export function GlobalNetworkMap({
       ];
       const active: string[] = [];
       for (const p of picked) if (!active.includes(p.config.id)) active.push(p.config.id);
+      // Transaction-link layer: rotate one emphasized real corridor in.
+      const visIds = new Set(visibleRoutes.map((r) => r.config.id));
+      const emphasis = emphasisRouteIds.filter((id) => visIds.has(id));
+      if (emphasis.length) {
+        const pick = emphasis[salt % emphasis.length];
+        if (!active.includes(pick)) active.unshift(pick);
+      }
       const finalActive = active.slice(0, caps.active);
       const transfer = finalActive.slice(0, caps.transfer);
       setActiveIds(new Set(finalActive));
       setTransferIds(new Set(transfer));
-      onTransfersChange?.(
-        transfer.map((id) => ({
+      onTick?.({
+        activeCount: finalActive.length,
+        transfers: transfer.map((id) => ({
           id,
           from: locationById[routeById[id].from],
           to: locationById[routeById[id].to],
         })),
-      );
+      });
     };
     tick();
     const iv = setInterval(tick, 6500);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bp, paused, reduce, visibleRoutes]);
+  }, [bp, isPaused, reduce, visibleRoutes]);
 
   /* ---------- hover helpers (tooltip anchored via measured rects) ---------- */
   const anchorTip = (e: React.MouseEvent) => {
@@ -223,8 +293,9 @@ export function GlobalNetworkMap({
       style={{ aspectRatio: `${vb.w} / ${vb.h}` }}
     >
       <svg
+        ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
-        className={cn('h-full w-full', paused && 'map-paused')}
+        className={cn('h-full w-full', isPaused && 'map-paused')}
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={t('title')}
@@ -240,16 +311,21 @@ export function GlobalNetworkMap({
           </filter>
         </defs>
 
-        {/* graticule + landmass */}
-        <path d={G.graticulePath} fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.045" strokeWidth="0.6" />
-        <path
-          d={G.landPath}
-          fill="hsl(var(--foreground))"
-          fillOpacity="0.055"
-          stroke="hsl(var(--foreground))"
-          strokeOpacity="0.14"
-          strokeWidth="0.6"
-        />
+        {/* graticule + landmass — first entrance stage */}
+        <g
+          className="transition-opacity duration-700 ease-premium"
+          style={{ opacity: stage >= 1 ? 1 : 0 }}
+        >
+          <path d={G.graticulePath} fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.045" strokeWidth="0.6" />
+          <path
+            d={G.landPath}
+            fill="hsl(var(--foreground))"
+            fillOpacity="0.055"
+            stroke="hsl(var(--foreground))"
+            strokeOpacity="0.14"
+            strokeWidth="0.6"
+          />
+        </g>
 
         {/* ROUTES — inactive layer (always), active overlay (state-driven) */}
         <g fill="none" strokeLinecap="round">
@@ -273,17 +349,23 @@ export function GlobalNetworkMap({
                 {/* hit area */}
                 <path d={geom.d} stroke="transparent" strokeWidth="12" />
                 {/* INACTIVE — the "network exists" layer */}
-                <path d={geom.d} stroke="hsl(var(--primary))" strokeOpacity={0.09} strokeWidth="1" />
+                <path
+                  d={geom.d}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="1"
+                  className="transition-opacity duration-1000 ease-premium"
+                  style={{ opacity: stage >= 2 ? 0.09 : 0 } as React.CSSProperties}
+                />
                 {/* ACTIVE — fades in/out via CSS (never hard-swapped) */}
                 <path
                   d={geom.d}
                   stroke="url(#gnm-route)"
                   strokeWidth={isHovered ? 2.2 : 1.6}
                   className="transition-opacity ease-premium"
-                  style={{ opacity: isActive || isHovered ? 1 : 0, transitionDuration: '1400ms' }}
+                  style={{ opacity: stage >= 2 && (isActive || isHovered) ? 1 : 0, transitionDuration: '1400ms' }}
                 />
                 {/* TRANSFER — moving light with soft trail */}
-                {isTransfer && !reduce && (
+                {isTransfer && !reduce && stage >= 3 && (
                   <>
                     <circle r="4.5" fill="hsl(var(--primary))" opacity="0.35" filter="url(#gnm-soft)">
                       <animateMotion dur="5.2s" repeatCount="indefinite" path={geom.d} />
@@ -292,6 +374,27 @@ export function GlobalNetworkMap({
                       <animateMotion dur="5.2s" repeatCount="indefinite" path={geom.d} />
                     </circle>
                   </>
+                )}
+                {/* sparse premium service/currency tag on a few live routes */}
+                {isTransfer && stage >= 4 && bp === 'desktop' && config.tags && (
+                  <text
+                    x={geom.mx}
+                    y={geom.my - 7}
+                    textAnchor="middle"
+                    className="fill-primary animate-fade-in"
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      pointerEvents: 'none',
+                      paintOrder: 'stroke',
+                      stroke: 'hsl(var(--surface))',
+                      strokeWidth: 3,
+                      strokeLinejoin: 'round',
+                    }}
+                  >
+                    {config.tags.join(' · ')}
+                  </text>
                 )}
               </g>
             );
@@ -318,8 +421,10 @@ export function GlobalNetworkMap({
               <g
                 key={l.id}
                 transform={`translate(${p.x} ${p.y})`}
-                className="transition-opacity duration-500"
-                style={{ opacity: dimmed ? 0.35 : 1 }}
+                className="transition-opacity duration-700 ease-premium"
+                style={{
+                  opacity: (l.tier === 1 ? stage >= 1 : stage >= 2) ? (dimmed ? 0.35 : 1) : 0,
+                }}
                 onMouseEnter={(e) => {
                   setHoverCity(l.id);
                   anchorTip(e);

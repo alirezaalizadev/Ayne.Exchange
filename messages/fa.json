@@ -125,7 +125,17 @@
     "connections": "{count} اتصال",
     "statLocations": "شهرها",
     "statRegions": "مناطق",
-    "statRoutes": "مسیرها"
+    "statRoutes": "مسیرها",
+    "panelTitle": "اتصال‌های جاری",
+    "activityLabel": "شبکه جهانی",
+    "activityValues": "{locations} شهر · {routes} مسیر فعال",
+    "legend": "راهنما",
+    "legendHub": "قطب جهانی",
+    "legendRegional": "قطب منطقه‌ای",
+    "legendLine": "خط شبکه",
+    "legendActive": "مسیر فعال",
+    "pause": "توقف انیمیشن",
+    "resume": "ادامه انیمیشن"
   },
   "calculator": {
     "eyebrow": "ماشین‌حساب تبدیل",

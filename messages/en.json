@@ -125,7 +125,17 @@
     "connections": "{count} connections",
     "statLocations": "Locations",
     "statRegions": "Regions",
-    "statRoutes": "Routes"
+    "statRoutes": "Routes",
+    "panelTitle": "Current connections",
+    "activityLabel": "Global network",
+    "activityValues": "{locations} locations · {routes} active routes",
+    "legend": "Legend",
+    "legendHub": "Global hub",
+    "legendRegional": "Regional hub",
+    "legendLine": "Network line",
+    "legendActive": "Active route",
+    "pause": "Pause animation",
+    "resume": "Resume animation"
   },
   "calculator": {
     "eyebrow": "Exchange calculator",
