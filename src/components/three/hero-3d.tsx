@@ -49,15 +49,28 @@ export function SculptureFallback() {
         <text x="70" y="120">€</text>
         <text x="318" y="150">$</text>
         <text x="300" y="290">₺</text>
+        <text x="112" y="330">£</text>
       </g>
       <circle cx="120" cy="300" r="3" fill="hsl(var(--primary))" opacity="0.5" />
       <circle cx="290" cy="96" r="2.5" fill="hsl(var(--primary))" opacity="0.4" />
-      {/* minted crypto coin */}
+      {/* minted crypto coins — echo of the 3D fleet */}
       <g transform="translate(96 236)">
         <circle r="22" fill="hsl(var(--muted-foreground))" opacity="0.35" />
         <circle r="22" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.35" strokeWidth="2" />
         <circle r="16" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.2" strokeWidth="1" />
         <text x="0" y="7" textAnchor="middle" fontSize="20" fontWeight="800" fill="hsl(var(--foreground))" opacity="0.7">₿</text>
+      </g>
+      <g transform="translate(292 226)">
+        <circle r="17" fill="hsl(var(--muted-foreground))" opacity="0.3" />
+        <circle r="17" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.3" strokeWidth="1.6" />
+        <circle r="12" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.18" strokeWidth="1" />
+        <text x="0" y="5.5" textAnchor="middle" fontSize="15" fontWeight="800" fill="hsl(var(--foreground))" opacity="0.65">Ξ</text>
+      </g>
+      <g transform="translate(150 108)">
+        <circle r="14" fill="hsl(var(--muted-foreground))" opacity="0.28" />
+        <circle r="14" fill="none" stroke="hsl(var(--primary))" strokeOpacity="0.45" strokeWidth="1.6" />
+        <circle r="10" fill="none" stroke="hsl(var(--foreground))" strokeOpacity="0.16" strokeWidth="1" />
+        <text x="0" y="4.5" textAnchor="middle" fontSize="12" fontWeight="800" fill="hsl(var(--foreground))" opacity="0.6">₮</text>
       </g>
     </svg>
   );

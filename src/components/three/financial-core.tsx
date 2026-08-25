@@ -7,13 +7,13 @@ import { RoundedBox, Environment, Lightformer } from '@react-three/drei';
 
 /**
  * AYNE FINANCIAL CORE — procedural 3D brand sculpture.
- * Composition (desktop): 1 extruded Ayne "A" core, 3 rings, 4 financial
- * papers, 3 currency symbols, 2 minted tokens, 1 sparse particle field,
- * 3 tiny service labels. Everything is generated at runtime — no model
- * files, no HDRs, no external assets beyond the self-hosted brand font.
+ * Composition (desktop): 1 extruded Ayne "A" core, 3 rings, a fleet of 10
+ * minted cryptocurrency coins, orbiting fiat currency characters, 1 sparse
+ * particle field, 3 tiny service labels. Everything is generated at runtime —
+ * no model files, no HDRs, no external assets beyond the self-hosted font.
  *
  * Materials stay within four families (dark metal, brushed silver, smoked
- * glass, financial paper) and all colours come from the Ayne token palette.
+ * glass, minted coin metal) and all colours come from the Ayne token palette.
  */
 
 export interface SceneProps {
@@ -243,289 +243,14 @@ function Rings({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>
   );
 }
 
-/* ------------------------ real-currency banknotes ------------------------ *
- * Recognition through design language, NOT scans: each note borrows its real
- * currency's iconic colours, denomination typography and ornament style —
- * original artwork, no portraits, no serial formats, no photo textures.
- * Slightly desaturated/graded so they sit in the scene on both themes.
- * A discreet AYNE stamp marks each note as a brand object.                  */
-
-interface NoteDef {
-  code: string;
-  symbol: string;
-  denom: string;
-  bg: string;
-  bg2: string;
-  ink: string;
-  accent: string;
-  motif: 'seal' | 'arch' | 'crescent' | 'meander' | 'wave' | 'crown' | 'band';
-}
-
-const NOTE_DEFS: NoteDef[] = [
-  { code: 'USD', symbol: '$', denom: '100', bg: '#e6e2cd', bg2: '#d8dcc4', ink: '#33523a', accent: '#24402c', motif: 'seal' },
-  { code: 'EUR', symbol: '\u20ac', denom: '50', bg: '#cdd5df', bg2: '#c2ccd4', ink: '#3a5578', accent: '#87692f', motif: 'arch' },
-  { code: 'TRY', symbol: '\u20ba', denom: '200', bg: '#e2c7b6', bg2: '#d8b3a4', ink: '#8d4136', accent: '#a45a2f', motif: 'crescent' },
-  { code: 'CNY', symbol: '\u00a5', denom: '100', bg: '#e3bfc0', bg2: '#d7a9ad', ink: '#8f3540', accent: '#7a2c36', motif: 'meander' },
-  { code: 'JPY', symbol: '\u00a5', denom: '1000', bg: '#e6e0cf', bg2: '#d9d0c2', ink: '#5f5169', accent: '#7a6a54', motif: 'wave' },
-  // optional extras in the rotation pool
-  { code: 'GBP', symbol: '\u00a3', denom: '20', bg: '#d8c9d6', bg2: '#cbb9ca', ink: '#5d3e63', accent: '#7d5a83', motif: 'crown' },
-  { code: 'RUB', symbol: '\u20bd', denom: '1000', bg: '#cfd8cd', bg2: '#c0ccc0', ink: '#3f5f4c', accent: '#57755f', motif: 'band' },
-];
-
-function drawStar(x: CanvasRenderingContext2D, cx: number, cy: number, r: number, points = 5) {
-  x.beginPath();
-  for (let i = 0; i < points * 2; i++) {
-    const a = (i * Math.PI) / points - Math.PI / 2;
-    const rr = i % 2 === 0 ? r : r * 0.45;
-    x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
-  }
-  x.closePath();
-  x.fill();
-}
-
-function makePaperTexture(def: NoteDef): THREE.CanvasTexture {
-  const w = 640;
-  const h = 360;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const x = c.getContext('2d')!;
-  const family = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/['"]/g, '') || 'sans-serif';
-
-  // graded two-tone paper ground
-  const grad = x.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, def.bg);
-  grad.addColorStop(1, def.bg2);
-  x.fillStyle = grad;
-  x.fillRect(0, 0, w, h);
-
-  const ink = def.ink;
-  const withA = (hex: string, a: number) => {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-  };
-
-  // paper micro-texture
-  x.fillStyle = withA(ink, 0.05);
-  for (let i = 0; i < 420; i++) x.fillRect((i * 131) % w, (i * 71) % h, 1.4, 1.4);
-
-  // guilloche border bands (top + bottom interlaced arcs)
-  x.strokeStyle = withA(ink, 0.34);
-  x.lineWidth = 1.2;
-  for (const yBand of [26, h - 26]) {
-    for (let i = 0; i < 40; i++) {
-      x.beginPath();
-      x.arc(i * 17, yBand, 13, 0, Math.PI * 2);
-      x.stroke();
-    }
-  }
-  // frame
-  x.strokeStyle = withA(ink, 0.55);
-  x.lineWidth = 3;
-  x.strokeRect(10, 10, w - 20, h - 20);
-  x.lineWidth = 1;
-  x.strokeRect(18, 18, w - 36, h - 36);
-
-  // fine guilloche rosette field (centre-left)
-  x.strokeStyle = withA(ink, 0.16);
-  x.lineWidth = 1;
-  for (let i = 0; i < 14; i++) {
-    x.beginPath();
-    x.ellipse(w * 0.62, h * 0.52, 40 + i * 9, 92 - i * 4, (i * Math.PI) / 14, 0, Math.PI * 2);
-    x.stroke();
-  }
-
-  /* ---- currency-specific motif ---- */
-  x.save();
-  if (def.motif === 'seal') {
-    // dollar-style circular seal with radial ticks
-    const cx0 = w * 0.62, cy0 = h * 0.52, R = 62;
-    x.strokeStyle = withA(ink, 0.75);
-    x.lineWidth = 3;
-    x.beginPath(); x.arc(cx0, cy0, R, 0, Math.PI * 2); x.stroke();
-    x.lineWidth = 1.4;
-    for (let i = 0; i < 48; i++) {
-      const a = (i / 48) * Math.PI * 2;
-      x.beginPath();
-      x.moveTo(cx0 + Math.cos(a) * (R - 8), cy0 + Math.sin(a) * (R - 8));
-      x.lineTo(cx0 + Math.cos(a) * (R - 2), cy0 + Math.sin(a) * (R - 2));
-      x.stroke();
-    }
-    x.beginPath(); x.arc(cx0, cy0, R - 14, 0, Math.PI * 2); x.stroke();
-    x.fillStyle = withA(ink, 0.8);
-    drawStar(x, cx0, cy0, 20, 5);
-  } else if (def.motif === 'arch') {
-    // euro arches + ring of stars
-    x.strokeStyle = withA(ink, 0.6);
-    x.lineWidth = 4;
-    for (let i = 0; i < 3; i++) {
-      x.beginPath();
-      x.arc(w * 0.62, h * 0.86, 46 + i * 20, Math.PI, Math.PI * 2);
-      x.stroke();
-    }
-    x.fillStyle = withA(def.accent, 0.85);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      drawStar(x, w * 0.62 + Math.cos(a) * 78, h * 0.38 + Math.sin(a) * 52, 7, 5);
-    }
-  } else if (def.motif === 'crescent') {
-    // Turkish crescent-star + eight-point seljuk stars
-    const cx0 = w * 0.63, cy0 = h * 0.5;
-    x.fillStyle = withA(ink, 0.72);
-    x.beginPath(); x.arc(cx0, cy0, 42, 0, Math.PI * 2); x.fill();
-    x.fillStyle = grad as unknown as string;
-    x.fillStyle = def.bg;
-    x.beginPath(); x.arc(cx0 + 14, cy0, 36, 0, Math.PI * 2); x.fill();
-    x.fillStyle = withA(ink, 0.72);
-    drawStar(x, cx0 + 52, cy0, 13, 5);
-    x.fillStyle = withA(def.accent, 0.4);
-    for (const [sx, sy] of [[0.42, 0.28], [0.84, 0.3], [0.45, 0.74], [0.86, 0.72]] as const) {
-      drawStar(x, w * sx, h * sy, 10, 8);
-    }
-  } else if (def.motif === 'meander') {
-    // renminbi-style key-pattern strip + round emblem
-    x.strokeStyle = withA(ink, 0.6);
-    x.lineWidth = 2.4;
-    for (let i = 0; i < 12; i++) {
-      const bx = 40 + i * 48;
-      x.strokeRect(bx, h - 58, 22, 12);
-      x.strokeRect(bx + 5, h - 53, 12, 7);
-    }
-    const cx0 = w * 0.63, cy0 = h * 0.46;
-    x.lineWidth = 3;
-    x.beginPath(); x.arc(cx0, cy0, 54, 0, Math.PI * 2); x.stroke();
-    x.font = `800 60px ${family}`;
-    x.fillStyle = withA(ink, 0.8);
-    x.fillText('\u5143', cx0 - 30, cy0 + 22);
-  } else if (def.motif === 'wave') {
-    // seigaiha overlapping wave scales
-    x.strokeStyle = withA(ink, 0.4);
-    x.lineWidth = 1.6;
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 9; col++) {
-        const bx = 60 + col * 64 + (row % 2 ? 32 : 0);
-        const by = h * 0.42 + row * 26;
-        for (const r of [30, 22, 14]) {
-          x.beginPath(); x.arc(bx, by, r, Math.PI, Math.PI * 2); x.stroke();
-        }
-      }
-    }
-  } else if (def.motif === 'crown') {
-    x.strokeStyle = withA(ink, 0.6);
-    x.lineWidth = 3;
-    x.beginPath(); x.arc(w * 0.63, h * 0.5, 52, 0, Math.PI * 2); x.stroke();
-    x.fillStyle = withA(ink, 0.7);
-    for (let i = 0; i < 5; i++) drawStar(x, w * 0.63 - 40 + i * 20, h * 0.42, 8, 5);
-    x.fillRect(w * 0.63 - 44, h * 0.5, 88, 8);
-  } else {
-    x.strokeStyle = withA(ink, 0.5);
-    x.lineWidth = 5;
-    x.strokeRect(w * 0.52, h * 0.3, w * 0.22, h * 0.4);
-  }
-  x.restore();
-
-  /* ---- typography ---- */
-  // large denomination numeral (intaglio-style: shadow + face)
-  x.font = `800 96px ${family}`;
-  x.fillStyle = withA(ink, 0.28);
-  x.fillText(def.denom, 36 + 2.5, 132 + 2.5);
-  x.fillStyle = withA(ink, 0.92);
-  x.fillText(def.denom, 36, 132);
-  // small numeral bottom-right
-  x.font = `800 44px ${family}`;
-  const dw = x.measureText(def.denom).width;
-  x.fillStyle = withA(ink, 0.85);
-  x.fillText(def.denom, w - dw - 34, h - 40);
-  // currency symbol prominent
-  x.font = `800 74px ${family}`;
-  x.fillStyle = withA(def.accent, 0.9);
-  x.fillText(def.symbol, 40, h - 52);
-  // currency code
-  x.font = `700 26px ${family}`;
-  x.fillStyle = withA(ink, 0.9);
-  x.fillText(def.code, 40, 176);
-  // discreet AYNE stamp (corner)
-  x.strokeStyle = withA(ink, 0.35);
-  x.lineWidth = 1.5;
-  x.strokeRect(w - 96, 30, 62, 24);
-  x.font = `700 15px ${family}`;
-  x.fillStyle = withA(ink, 0.4);
-  x.fillText('AYNE', w - 84, 47);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 4;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-/* orbit slots (independent of which currency occupies them) */
-interface NoteSlot {
-  radius: number;
-  speed: number;
-  phase: number;
-  y: number;
-}
-
-const NOTE_SLOTS: NoteSlot[] = [
-  { radius: 2.9, speed: 0.11, phase: 0.4, y: 0.55 },
-  { radius: 3.25, speed: 0.085, phase: 2.3, y: -0.35 },
-  { radius: 2.7, speed: 0.13, phase: 4.1, y: -0.85 },
-  { radius: 3.5, speed: 0.07, phase: 5.4, y: 1.05 },
-];
-
-/** Which 4 of the pool are on stage; one seat rotates every ~26s. */
-const NOTE_SETS: number[][] = [
-  [0, 1, 2, 3], // USD EUR TRY CNY
-  [0, 1, 4, 2], // USD EUR JPY TRY
-  [4, 1, 0, 3], // JPY EUR USD CNY
-  [0, 5, 2, 6], // USD GBP TRY RUB
-];
-
-function Paper({ def, slot, enter }: { def: NoteDef; slot: NoteSlot; enter: React.MutableRefObject<number> }) {
-  const ref = React.useRef<THREE.Group>(null);
-  const bornRef = React.useRef<number | null>(null);
-  const tex = React.useMemo(() => makePaperTexture(def), [def]);
-  React.useEffect(() => () => tex.dispose(), [tex]);
-
-  const mat = React.useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        map: tex,
-        bumpMap: tex,
-        bumpScale: 0.25,
-        roughness: 0.72,
-        metalness: 0.05,
-      }),
-    [tex],
-  );
-
-  useFrame((state) => {
-    const g = ref.current;
-    if (!g) return;
-    const t = state.clock.elapsedTime;
-    if (bornRef.current === null) bornRef.current = t;
-    const a = t * slot.speed * Math.PI * 2 + slot.phase;
-    g.position.set(Math.cos(a) * slot.radius, slot.y + Math.sin(t * 0.5 + slot.phase) * 0.16, Math.sin(a) * 1.5);
-    g.rotation.y = -a + Math.PI / 2 + Math.sin(t * 0.4 + slot.phase) * 0.12;
-    g.rotation.x = Math.sin(t * 0.33 + slot.phase) * 0.1;
-    const kEnter = easeOut(THREE.MathUtils.clamp(enter.current - 0.45, 0, 1));
-    const kBorn = easeOut(THREE.MathUtils.clamp((t - bornRef.current) / 0.9, 0, 1));
-    g.scale.setScalar(Math.max(kEnter * kBorn, 0.0001));
-  });
-
-  return (
-    <group ref={ref}>
-      <RoundedBox args={[0.92, 0.52, 0.014]} radius={0.035} smoothness={2} material={mat} />
-    </group>
-  );
-}
-
-/* ------------------------ symbols, tokens, labels ------------------------ */
+/* -------------------------- currency characters --------------------------- *
+ * Fiat money appears ONLY as floating currency characters — the sets rotate
+ * so the whole basket shows over time (4 glyphs on desktop, 2 on mobile).    */
 
 const SYMBOL_SETS = [
-  ['€', '$', '₺'],
-  ['£', '¥', '$'],
-  ['€', '₽', '₺'],
+  ['€', '$', '₺', '£'],
+  ['£', '¥', '$', '₽'],
+  ['€', '₽', '¥', '$'],
 ];
 
 function Symbols({ mats, variant, enter }: { mats: ReturnType<typeof useMaterials>; variant: SceneProps['variant']; enter: React.MutableRefObject<number> }) {
@@ -534,7 +259,7 @@ function Symbols({ mats, variant, enter }: { mats: ReturnType<typeof useMaterial
     const iv = setInterval(() => setSetIdx((i) => (i + 1) % SYMBOL_SETS.length), 18000);
     return () => clearInterval(iv);
   }, []);
-  const chars = SYMBOL_SETS[setIdx].slice(0, variant === 'mobile' ? 2 : 3);
+  const chars = SYMBOL_SETS[setIdx].slice(0, variant === 'mobile' ? 2 : 4);
 
   return (
     <>
@@ -544,8 +269,8 @@ function Symbols({ mats, variant, enter }: { mats: ReturnType<typeof useMaterial
           char={ch}
           radius={2.25 + i * 0.35}
           speed={0.09 + i * 0.02}
-          phase={i * 2.2 + 1.1}
-          y={0.9 - i * 0.75}
+          phase={i * 1.7 + 1.1}
+          y={1.0 - i * 0.65}
           size={0.34}
           color={i === 1 ? P.accent : undefined}
           mats={mats}
@@ -596,10 +321,10 @@ function OrbitingText({
 }
 
 /* ------------------------------ crypto coins ----------------------------- *
- * Premium minted coins (BTC/ETH/USDT/USDC pool) — procedural cylinder with a
- * striped bump "reeded" edge, torus rims, and a generated face texture used
- * as both color and bump map for an embossed relief look. Crypto stays a
- * minority presence (~20%) — two coins on desktop, one on mobile.           */
+ * The main orbit population: a fleet of 10 premium minted coins — procedural
+ * cylinder with a striped bump "reeded" edge, torus rims, and a generated
+ * face texture used as both color and bump map for an embossed relief look.
+ * Desktop shows the whole fleet; mobile shows the 5 majors.                 */
 
 interface CoinDef {
   id: string;
@@ -611,19 +336,42 @@ interface CoinDef {
 }
 
 const COIN_DEFS: CoinDef[] = [
-  { id: 'BTC', symbol: '\u20bf', base: '#8a6f42', center: '#7a6139', rough: 0.38 },
-  { id: 'ETH', symbol: '\u039e', base: '#c3c9d6', center: '#4d5566', rough: 0.3 },
-  { id: 'USDT', symbol: '\u20ae', base: '#b9c1cf', ring: '#1f8a70', rough: 0.22 },
+  { id: 'BTC', symbol: '₿', base: '#8a6f42', center: '#7a6139', rough: 0.38 },
+  { id: 'ETH', symbol: 'Ξ', base: '#c3c9d6', center: '#4d5566', rough: 0.3 },
+  { id: 'USDT', symbol: '₮', base: '#b9c1cf', ring: '#1f8a70', rough: 0.22 },
   { id: 'USDC', symbol: '$', base: '#b9c1cf', ring: '#2563d8', rough: 0.22 },
+  { id: 'BNB', symbol: 'BNB', base: '#a8894a', center: '#8a6f38', rough: 0.32 },
+  { id: 'XRP', symbol: 'XRP', base: '#9aa3b2', center: '#3d4452', rough: 0.28 },
+  { id: 'SOL', symbol: 'SOL', base: '#8f8aa8', center: '#565073', rough: 0.3 },
+  { id: 'ADA', symbol: '₳', base: '#8e9bb0', center: '#43516b', rough: 0.3 },
+  { id: 'DOGE', symbol: 'Ð', base: '#b09a5e', center: '#93803f', rough: 0.35 },
+  { id: 'LTC', symbol: 'Ł', base: '#c9ced8', center: '#8f97a8', rough: 0.26 },
 ];
 
-/** Coin pairs cycle so the whole pool appears over time. */
-const COIN_PAIRS: [number, number][] = [
-  [0, 2], // BTC + USDT
-  [1, 3], // ETH + USDC
-  [0, 1], // BTC + ETH
-  [2, 3], // USDT + USDC
+/** Orbit slot per coin — radii/speeds/phases spread so the fleet never clumps. */
+interface CoinSlot {
+  radius: number;
+  speed: number;
+  phase: number;
+  y: number;
+  scale: number;
+}
+
+const COIN_SLOTS: CoinSlot[] = [
+  { radius: 2.95, speed: 0.1, phase: 0.3, y: 0.6, scale: 1.2 }, // BTC — flagship, slightly larger
+  { radius: 3.3, speed: 0.08, phase: 1.05, y: -0.3, scale: 1.05 }, // ETH
+  { radius: 2.7, speed: 0.12, phase: 1.8, y: -0.9, scale: 0.95 }, // USDT
+  { radius: 3.55, speed: 0.07, phase: 2.5, y: 1.05, scale: 0.95 }, // USDC
+  { radius: 3.1, speed: 0.09, phase: 3.2, y: 0.15, scale: 0.9 }, // BNB
+  { radius: 2.6, speed: 0.13, phase: 3.9, y: 0.85, scale: 0.85 }, // XRP
+  { radius: 3.75, speed: 0.06, phase: 4.6, y: -0.65, scale: 1.0 }, // SOL
+  { radius: 2.85, speed: 0.11, phase: 5.3, y: -1.15, scale: 0.85 }, // ADA
+  { radius: 3.4, speed: 0.075, phase: 6.0, y: 0.4, scale: 0.9 }, // DOGE
+  { radius: 3.0, speed: 0.095, phase: 4.25, y: -0.05, scale: 0.9 }, // LTC
 ];
+
+/** The 5 majors shown on mobile (indices into COIN_DEFS/COIN_SLOTS). */
+const MOBILE_COIN_IDXS = [0, 1, 2, 3, 6];
 
 function makeCoinFace(def: CoinDef): THREE.CanvasTexture {
   const S = 512;
@@ -668,15 +416,18 @@ function makeCoinFace(def: CoinDef): THREE.CanvasTexture {
   x.beginPath();
   x.arc(cx, cx, 148, 0, Math.PI * 2);
   x.fill();
-  // embossed symbol (highlight + shadow pass for relief)
-  x.font = `800 200px ${family}`;
+  // embossed symbol (highlight + shadow pass for relief); ticker marks
+  // without a currency glyph render as smaller lettering that still fits
+  const px = def.symbol.length === 1 ? 200 : def.symbol.length === 2 ? 150 : 110;
+  const yOff = px * 0.35;
+  x.font = `800 ${px}px ${family}`;
   const sw = x.measureText(def.symbol).width;
   x.fillStyle = 'rgba(255,255,255,0.28)';
-  x.fillText(def.symbol, cx - sw / 2 - 3, cx + 70 - 3);
+  x.fillText(def.symbol, cx - sw / 2 - 3, cx + yOff - 3);
   x.fillStyle = 'rgba(0,0,0,0.42)';
-  x.fillText(def.symbol, cx - sw / 2 + 2, cx + 70 + 2);
+  x.fillText(def.symbol, cx - sw / 2 + 2, cx + yOff + 2);
   x.fillStyle = def.center ? '#e8ebf2' : 'rgba(20,24,34,0.85)';
-  x.fillText(def.symbol, cx - sw / 2, cx + 70);
+  x.fillText(def.symbol, cx - sw / 2, cx + yOff);
   // AYNE mint-mark near the rim
   x.font = `700 22px ${family}`;
   x.fillStyle = 'rgba(0,0,0,0.4)';
@@ -706,24 +457,27 @@ function makeReedTexture(): THREE.CanvasTexture {
 }
 
 function CryptoCoins({ variant, enter }: { variant: SceneProps['variant']; enter: React.MutableRefObject<number> }) {
-  const [pairIdx, setPairIdx] = React.useState(0);
-  React.useEffect(() => {
-    const iv = setInterval(() => setPairIdx((i) => (i + 1) % COIN_PAIRS.length), 22000);
-    return () => clearInterval(iv);
-  }, []);
-  const pair = COIN_PAIRS[pairIdx];
-  const shown = variant === 'mobile' ? [pair[0]] : pair;
-
+  const idxs = variant === 'mobile' ? MOBILE_COIN_IDXS : COIN_DEFS.map((_, i) => i);
   return (
     <>
-      {shown.map((defIdx, slot) => (
-        <CryptoCoin key={`${defIdx}-${slot}`} def={COIN_DEFS[defIdx]} slot={slot} enter={enter} />
+      {idxs.map((i, order) => (
+        <CryptoCoin key={COIN_DEFS[i].id} def={COIN_DEFS[i]} slot={COIN_SLOTS[i]} order={order} enter={enter} />
       ))}
     </>
   );
 }
 
-function CryptoCoin({ def, slot, enter }: { def: CoinDef; slot: number; enter: React.MutableRefObject<number> }) {
+function CryptoCoin({
+  def,
+  slot,
+  order,
+  enter,
+}: {
+  def: CoinDef;
+  slot: CoinSlot;
+  order: number;
+  enter: React.MutableRefObject<number>;
+}) {
   const ref = React.useRef<THREE.Group>(null);
   const face = React.useMemo(() => makeCoinFace(def), [def]);
   const reed = React.useMemo(() => makeReedTexture(), []);
@@ -757,17 +511,18 @@ function CryptoCoin({ def, slot, enter }: { def: CoinDef; slot: number; enter: R
     const g = ref.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
-    // orbit slightly farther out than the banknotes
-    const a = t * (0.055 + slot * 0.018) * Math.PI * 2 + slot * 2.6 + 1.4;
-    const R = 3.7 + slot * 0.25;
-    g.position.set(Math.cos(a) * R, (slot === 0 ? -1.05 : 1.15) + Math.sin(t * 0.45 + slot) * 0.12, Math.sin(a) * 1.45 + (slot === 0 ? 0.5 : 0));
-    // steady self-spin + occasional graceful flip
-    const flipPeriod = 12 + slot * 3;
-    const ft = (t + slot * 5) % flipPeriod;
-    const flip = ft < 1.6 ? easeOut(ft / 1.6) * Math.PI : Math.PI * (ft < 1.6 ? 0 : 1);
-    g.rotation.set(Math.PI / 2.15 + Math.sin(t * 0.35 + slot) * 0.12 + flip, 0, t * 0.4 + slot);
-    const k = easeOut(THREE.MathUtils.clamp(enter.current - 0.7, 0, 1));
-    g.scale.setScalar(k);
+    const a = t * slot.speed * Math.PI * 2 + slot.phase;
+    g.position.set(Math.cos(a) * slot.radius, slot.y + Math.sin(t * 0.5 + slot.phase) * 0.14, Math.sin(a) * 1.5);
+    // steady self-spin + occasional graceful flip; whole half-turns
+    // accumulate so the pose never snaps when the period wraps
+    const flipPeriod = 14 + (order % 5) * 3;
+    const tf = t + order * 2.3;
+    const ft = tf % flipPeriod;
+    const flip = (Math.floor(tf / flipPeriod) + easeOut(Math.min(ft / 1.6, 1))) * Math.PI;
+    g.rotation.set(Math.PI / 2.15 + Math.sin(t * 0.35 + slot.phase) * 0.12 + flip, 0, t * 0.4 + slot.phase);
+    // fleet staggers in shortly after the rings
+    const k = easeOut(THREE.MathUtils.clamp(enter.current - 0.45 - order * 0.05, 0, 1));
+    g.scale.setScalar(Math.max(k * slot.scale, 0.0001));
   });
 
   return (
@@ -897,102 +652,73 @@ function Particles({ variant, theme, enter }: { variant: SceneProps['variant']; 
   );
 }
 
-/* --------------------------- currency conversion ------------------------- *
- * The signature moment: every ~11s (16s mobile) ONE object drifts toward the
+/* --------------------------- coin conversion ------------------------------ *
+ * The signature moment: every ~11s (16s mobile) ONE coin drifts toward the
  * core, dissolves into blue-white light, the particles cross the core (which
- * briefly illuminates), and the value reconstructs as a DIFFERENT currency on
- * the far side — including note↔coin pairs for crypto/cash exchange.
- * Elegant dissolution, never an explosion; one conversion at a time.        */
+ * briefly illuminates), and the value reconstructs as a DIFFERENT coin on
+ * the far side. Elegant dissolution, never an explosion; one at a time.     */
 
-type ConvObj = { kind: 'note'; idx: number } | { kind: 'coin'; idx: number };
-
-const CONVERSION_PAIRS: { from: ConvObj; to: ConvObj }[] = [
-  { from: { kind: 'note', idx: 0 }, to: { kind: 'note', idx: 1 } }, // USD → EUR
-  { from: { kind: 'note', idx: 1 }, to: { kind: 'note', idx: 2 } }, // EUR → TRY
-  { from: { kind: 'note', idx: 2 }, to: { kind: 'note', idx: 3 } }, // TRY → CNY
-  { from: { kind: 'note', idx: 0 }, to: { kind: 'coin', idx: 2 } }, // USD → USDT (crypto/cash)
-  { from: { kind: 'note', idx: 3 }, to: { kind: 'note', idx: 4 } }, // CNY → JPY
-  { from: { kind: 'note', idx: 4 }, to: { kind: 'note', idx: 0 } }, // JPY → USD
-  { from: { kind: 'coin', idx: 0 }, to: { kind: 'note', idx: 1 } }, // BTC → EUR
+const CONVERSION_PAIRS: [number, number][] = [
+  [0, 2], // BTC → USDT
+  [1, 3], // ETH → USDC
+  [6, 0], // SOL → BTC
+  [2, 1], // USDT → ETH
+  [8, 2], // DOGE → USDT
+  [9, 0], // LTC → BTC
+  [5, 3], // XRP → USDC
+  [7, 1], // ADA → ETH
 ];
 
 const N_CONV = 56;
 
-function ConvObject({
-  obj,
+function ConvCoin({
+  idx,
   groupRef,
   matRef,
   ringRef,
 }: {
-  obj: ConvObj;
+  idx: number;
   groupRef: React.RefObject<THREE.Group>;
   matRef: React.MutableRefObject<THREE.Material[]>;
   ringRef?: React.RefObject<THREE.Mesh>;
 }) {
-  const noteTex = React.useMemo(
-    () => (obj.kind === 'note' ? makePaperTexture(NOTE_DEFS[obj.idx]) : null),
-    [obj],
-  );
-  const coinTex = React.useMemo(() => (obj.kind === 'coin' ? makeCoinFace(COIN_DEFS[obj.idx]) : null), [obj]);
-  React.useEffect(
-    () => () => {
-      noteTex?.dispose();
-      coinTex?.dispose();
-    },
-    [noteTex, coinTex],
-  );
+  const def = COIN_DEFS[idx];
+  const face = React.useMemo(() => makeCoinFace(def), [def]);
+  React.useEffect(() => () => face.dispose(), [face]);
 
   const mats = React.useMemo(() => {
-    if (obj.kind === 'note') {
-      const m = new THREE.MeshStandardMaterial({
-        map: noteTex,
-        bumpMap: noteTex,
-        bumpScale: 0.25,
-        roughness: 0.72,
-        metalness: 0.05,
-        transparent: true,
-        opacity: 0,
-      });
-      matRef.current = [m];
-      return { note: m, coin: null as THREE.MeshStandardMaterial[] | null };
-    }
-    const def = COIN_DEFS[obj.idx];
-    const face = new THREE.MeshStandardMaterial({
-      map: coinTex,
-      bumpMap: coinTex,
+    const faceMat = new THREE.MeshStandardMaterial({
+      map: face,
+      bumpMap: face,
       bumpScale: 0.6,
       metalness: 0.85,
       roughness: def.rough,
       transparent: true,
       opacity: 0,
     });
-    const edge = new THREE.MeshStandardMaterial({
+    const edgeMat = new THREE.MeshStandardMaterial({
       color: def.base,
       metalness: 0.85,
       roughness: def.rough + 0.1,
       transparent: true,
       opacity: 0,
     });
-    matRef.current = [face, edge];
-    return { note: null, coin: [edge, face, face] };
-  }, [obj, noteTex, coinTex, matRef]);
+    return [edgeMat, faceMat, faceMat];
+  }, [face, def]);
+  React.useEffect(() => {
+    matRef.current = [mats[1], mats[0]];
+  }, [mats, matRef]);
 
   return (
     <group ref={groupRef} visible={false}>
-      {obj.kind === 'note' ? (
-        <RoundedBox args={[0.92, 0.52, 0.014]} radius={0.035} smoothness={2} material={mats.note!} />
-      ) : (
-        <>
-          <mesh material={mats.coin!}>
-            <cylinderGeometry args={[0.3, 0.3, 0.05, 64]} />
-          </mesh>
-          {/* reconstruct ring-flash on the coin face */}
-          <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]} visible={false}>
-            <torusGeometry args={[0.3, 0.02, 8, 48]} />
-            <meshBasicMaterial color={P.accentSoft} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
-        </>
-      )}
+      <mesh material={mats}>
+        <cylinderGeometry args={[0.3, 0.3, 0.05, 64]} />
+      </mesh>
+      {/* reconstruct ring-flash on the coin face */}
+      <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]} visible={false}>
+        <torusGeometry args={[0.3, 0.02, 8, 48]} />
+        <meshBasicMaterial color={P.accentSoft} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
@@ -1053,10 +779,10 @@ function ConversionLayer({
     const exit = smooth(t, 6.2, 8.8); // drift away
     const fadeOut = smooth(t, 8.2, 9.2);
 
-    // FROM object: drifts -3.4 → -1.1, fades in then dissolves (scale down)
+    // FROM coin: drifts -3.4 → -1.1, fades in then dissolves (scale down)
     A.visible = t < 3.8;
     A.position.set(THREE.MathUtils.lerp(X0, -1.05, drift), yBase + Math.sin(t * 1.3) * 0.06, 0.6);
-    A.rotation.y = 0.5 - drift * 0.4;
+    A.rotation.set(Math.PI / 2.2, 0.5 - drift * 0.4, t * 0.6);
     const aScale = (0.9 + drift * 0.1) * (1 - dissolve);
     A.scale.setScalar(Math.max(aScale, 0.0001));
     setOpacity(fromMats.current, Math.min(drift * 2, 1) * (1 - dissolve));
@@ -1080,20 +806,16 @@ function ConversionLayer({
     // Core illumination while the value passes through
     coreFlash.current = Math.sin(Math.min(Math.max((t - 3.2) / 2.2, 0), 1) * Math.PI);
 
-    // TO object: reconstructs at +1.05, drifts out, fades
+    // TO coin: reconstructs at +1.05, drifts out, fades
     B.visible = t > 4.8;
     B.position.set(THREE.MathUtils.lerp(1.05, X1, exit), yBase + Math.sin(t * 1.1) * 0.06, 0.6);
-    B.rotation.y = -0.3 + exit * 0.5;
-    if (pair.to.kind === 'coin') {
-      B.rotation.x = Math.PI / 2.2;
-      B.rotation.z = t * 0.6;
-    }
+    B.rotation.set(Math.PI / 2.2, -0.3 + exit * 0.5, t * 0.6);
     B.scale.setScalar(Math.max(rebuild, 0.0001));
     setOpacity(toMats.current, rebuild * (1 - fadeOut));
 
     // coin reconstruct ring-flash
     const ring = ringRef.current;
-    if (ring && pair.to.kind === 'coin') {
+    if (ring) {
       const rf = smooth(t, 5.0, 5.9);
       ring.visible = rf > 0 && rf < 1;
       ring.scale.setScalar(1 + rf * 1.6);
@@ -1103,8 +825,8 @@ function ConversionLayer({
 
   return (
     <>
-      <ConvObject key={`f-${pairIdx}`} obj={pair.from} groupRef={fromRef} matRef={fromMats} />
-      <ConvObject key={`t-${pairIdx}`} obj={pair.to} groupRef={toRef} matRef={toMats} ringRef={ringRef} />
+      <ConvCoin key={`f-${pairIdx}`} idx={pair[0]} groupRef={fromRef} matRef={fromMats} />
+      <ConvCoin key={`t-${pairIdx}`} idx={pair[1]} groupRef={toRef} matRef={toMats} ringRef={ringRef} />
       <points ref={ptsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[new Float32Array(N_CONV * 3), 3]} />
@@ -1157,12 +879,6 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
     enter.current = Math.min(enter.current + delta * 0.68, 1.9);
   });
 
-  const [noteSetIdx, setNoteSetIdx] = React.useState(0);
-  React.useEffect(() => {
-    const iv = setInterval(() => setNoteSetIdx((i) => (i + 1) % NOTE_SETS.length), 26000);
-    return () => clearInterval(iv);
-  }, []);
-  const noteIdxs = variant === 'mobile' ? [0, 1] : NOTE_SETS[noteSetIdx];
   const dark = theme === 'dark';
 
   return (
@@ -1182,9 +898,6 @@ function SceneContent({ theme, variant, pointer }: Omit<SceneProps, 'active'>) {
       <Rig pointer={pointer}>
         <Core mats={mats} enter={enter} coreFlash={coreFlash} />
         <Rings mats={mats} variant={variant} enter={enter} />
-        {noteIdxs.map((defIdx, i) => (
-          <Paper key={NOTE_DEFS[defIdx].code} def={NOTE_DEFS[defIdx]} slot={NOTE_SLOTS[i]} enter={enter} />
-        ))}
         <Symbols mats={mats} variant={variant} enter={enter} />
         <CryptoCoins variant={variant} enter={enter} />
         {variant === 'desktop' && <Labels enter={enter} theme={theme} />}
