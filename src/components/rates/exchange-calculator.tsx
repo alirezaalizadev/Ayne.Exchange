@@ -41,6 +41,11 @@ export function ExchangeCalculator({
   const [editing, setEditing] = React.useState(false);
   const [raw, setRaw] = React.useState('');
   const [swapped, setSwapped] = React.useState(false);
+  // The "updated" chip shows visitor-local time, which differs from the
+  // server's timezone during SSR — render it only after mount so hydration
+  // never sees mismatched text.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const result = convertAmount(pairs, value, from, to);
   const rate = getCrossRate(pairs, from, to);
@@ -95,7 +100,7 @@ export function ExchangeCalculator({
             <p className="text-xs text-muted-foreground">{t('panelSubtitle')}</p>
           </div>
         </div>
-        {updatedLabel && (
+        {mounted && updatedLabel && (
           <span className="hidden items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2.5 py-1 text-[0.65rem] font-medium text-muted-foreground sm:inline-flex">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
             {t('updatedAt', { time: updatedLabel })}

@@ -40,10 +40,12 @@ export function TransactionCard({
   const svc = serviceByKey(tx.serviceKey as ServiceKey);
   const serviceLabel = svc ? ts(`${svc.key}.name`) : t('businessPayment');
   const amount = formatTransactionAmount(tx, locale);
+  // Pin to UTC so server and client render the same calendar day (hydration-safe)
   const dateFmt = new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : locale === 'ru' ? 'ru-RU' : 'en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(tx.occurredOn));
 
   const originName = countryByCode(tx.originCountry)?.name ?? tx.originCountry;

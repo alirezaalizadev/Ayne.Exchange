@@ -121,7 +121,7 @@ export function TransactionsList({ txs }: { txs: PublicTransaction[] }) {
             />
             <DetailRow
               label={t('date')}
-              value={new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : locale === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium' }).format(new Date(selected.occurredOn))}
+              value={new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : locale === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(selected.occurredOn))}
             />
             <DetailRow label={t('status')} value={t(`status${selected.status}`)} />
           </div>
